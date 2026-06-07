@@ -9,6 +9,8 @@
 //                     timeline is reflowed around fixed anchors.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { timeToMinutes } from './validation';
+
 export type EngineCategory = {
   id: number;
   name: string;
@@ -126,4 +128,92 @@ export function runCascade(
     durationMin: adjusted.get(b.id) ?? b.durationMin,
   }));
   return { adjusted: adjustedBlocks, cutsByLevel, shortfall };
+}
+
+// ─── anchors & conflicts ──────────────────────────────────────────────────────
+
+export type AnchorKind = 'protected' | 'sleep' | 'event';
+
+export type Anchor = {
+  activity: string;
+  start: string;
+  end: string;
+  startMin: number;
+  endMin: number;
+  wrap: boolean; // crosses midnight
+  kind: AnchorKind;
+};
+
+function makeAnchor(activity: string, start: string, end: string, kind: AnchorKind): Anchor {
+  const startMin = timeToMinutes(start) ?? 0;
+  const endMin = timeToMinutes(end) ?? 0;
+  return { activity, start, end, startMin, endMin, wrap: endMin <= startMin, kind };
+}
+
+/** Splits a possibly-wrapping interval into 1–2 same-day segments within [0,1440). */
+function toSegments(startMin: number, endMin: number): Array<[number, number]> {
+  if (endMin > startMin) return [[startMin, endMin]];
+  return [
+    [startMin, 1440],
+    [0, endMin],
+  ];
+}
+
+/** Overlap test that tolerates midnight wrap on either interval. */
+export function intervalsOverlap(aS: number, aE: number, bS: number, bE: number): boolean {
+  for (const [as, ae] of toSegments(aS, aE)) {
+    for (const [bs, be] of toSegments(bS, bE)) {
+      if (as < be && bs < ae) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Fixed anchors for the day: protected blocks (Trabalho), the Sono block, and
+ * every event (which has a set time). Floating blocks reflow around these.
+ */
+export function collectAnchors(
+  blocks: EngineBlock[],
+  categories: EngineCategory[],
+  events: EngineEvent[],
+): Anchor[] {
+  const catById = new Map(categories.map((c) => [c.id, c]));
+  const anchors: Anchor[] = [];
+  for (const b of blocks) {
+    const cat = b.categoryId != null ? catById.get(b.categoryId) : undefined;
+    const isProtected = cat?.protected === 1;
+    const isSleep = cat?.name === 'Sono';
+    if (isProtected) anchors.push(makeAnchor(b.activity, b.start, b.end, 'protected'));
+    else if (isSleep) anchors.push(makeAnchor(b.activity, b.start, b.end, 'sleep'));
+  }
+  for (const ev of events) anchors.push(makeAnchor(ev.title, ev.start, ev.end, 'event'));
+  return anchors;
+}
+
+export type Conflict = {
+  event: EngineEvent;
+  anchorActivity: string;
+  anchorKind: AnchorKind;
+};
+
+/**
+ * A conflict is an event overlapping a fixed protected/sleep anchor — something
+ * the reflow cannot solve (the engine never cuts protected blocks). Returned to
+ * the UI so the user can reschedule or adjust manually.
+ */
+export function detectConflicts(events: EngineEvent[], anchors: Anchor[]): Conflict[] {
+  const fixed = anchors.filter((a) => a.kind === 'protected' || a.kind === 'sleep');
+  const conflicts: Conflict[] = [];
+  for (const ev of events) {
+    const eS = timeToMinutes(ev.start);
+    const eE = timeToMinutes(ev.end);
+    if (eS == null || eE == null) continue;
+    for (const a of fixed) {
+      if (intervalsOverlap(eS, eE, a.startMin, a.endMin)) {
+        conflicts.push({ event: ev, anchorActivity: a.activity, anchorKind: a.kind });
+      }
+    }
+  }
+  return conflicts;
 }
