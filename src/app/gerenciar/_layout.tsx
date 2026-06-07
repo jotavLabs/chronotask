@@ -22,6 +22,7 @@ export default function GerenciarLayout() {
       <Stack.Screen name="mensais" options={{ title: 'Rotinas mensais' }} />
       <Stack.Screen name="mensal-form" options={{ title: 'Rotina mensal', presentation: 'modal' }} />
       <Stack.Screen name="eventos" options={{ title: 'Compromissos' }} />
+      <Stack.Screen name="evento-form" options={{ title: 'Compromisso', presentation: 'modal' }} />
     </Stack>
   );
 }
