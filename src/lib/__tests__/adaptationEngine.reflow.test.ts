@@ -93,6 +93,39 @@ describe('reflow — shortened sleep starts later', () => {
   });
 });
 
+describe('reflow — midday event keeps morning in place, no cascade to dawn', () => {
+  // Café 06:00, Trabalho 08:30, Almoço 12:00, Tarde livre 13:00-17:00 (cut to 0),
+  // Jantar 19:00, Sono 22:00. Event 13:00-17:00.
+  const day = [
+    ab(1, 4, '06:00', '06:30', 30),
+    ab(2, 1, '08:30', '12:00', 210),
+    ab(3, 4, '12:00', '13:00', 60),
+    ab(4, 7, '13:00', '17:00', 240, 0), // Lazer cut to zero by cascade
+    ab(5, 4, '19:00', '20:00', 60), // Jantar
+    ab(6, 2, '22:00', '06:00', 480),
+  ];
+  const event: EngineEvent = { id: 9, title: 'Compromisso', start: '13:00', end: '17:00', durationMin: 240, categoryName: null };
+  const tl = reflow(day, CATS, [event], []);
+
+  it('keeps morning blocks at their original time', () => {
+    expect(find(tl, 'routine-1')).toMatchObject({ start: '06:00', end: '06:30' });
+  });
+
+  it('fills up to the event (no empty gap before it)', () => {
+    expect(find(tl, 'routine-3')).toMatchObject({ start: '12:00', end: '13:00' });
+  });
+
+  it('keeps the event fixed and the evening block in the evening (not pushed to dawn)', () => {
+    expect(find(tl, 'event-9')).toMatchObject({ start: '13:00', end: '17:00' });
+    expect(find(tl, 'routine-5')).toMatchObject({ start: '19:00', end: '20:00' }); // Jantar
+    expect(find(tl, 'routine-6')).toMatchObject({ start: '22:00', end: '06:00' }); // Sono
+  });
+
+  it('removes the block that was cut to zero', () => {
+    expect(find(tl, 'routine-4')).toMatchObject({ removed: true });
+  });
+});
+
 describe('reflow — monthly routine placement', () => {
   const monthly: EngineMonthly = {
     id: 3,

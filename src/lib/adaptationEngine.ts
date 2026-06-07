@@ -251,11 +251,18 @@ type FloatItem = {
   note?: string;
 };
 
+type Float = FloatItem & { origStart: number };
+
 /**
  * Greedy, deterministic reflow (not optimal — small manual tweaks acceptable).
- * Works in a linear timeline [dayStart, dayStart+1440] so Sono (which crosses
- * midnight) is handled as the terminal block. Fixed anchors keep their clock
- * time; floating blocks (incl. active monthly routines) fill the gaps in order.
+ * Works in a linear timeline [dayStart, dayStart+1440] so Sono (crossing
+ * midnight) is the terminal block.
+ *
+ * Fixed anchors (protected blocks, events, Sono) keep their clock time and split
+ * the day into free slots. Each floating block is assigned to the slot of its
+ * ORIGINAL time, so morning blocks stay in the morning and evening blocks in the
+ * evening — only what overlaps an anchor is pushed to the next slot, instead of
+ * re-stacking the whole day from dawn (which previously cascaded into the night).
  */
 export function reflow(
   adjusted: AdaptedBlock[],
@@ -273,39 +280,13 @@ export function reflow(
     nonSleep.length > 0 ? Math.min(...nonSleep.map((b) => timeToMinutes(b.start) ?? 0)) : 360;
   const toLinear = (min: number) => (min >= dayStart ? min : min + 1440);
 
-  // floating routine blocks (duration > 0), in original order
-  const floats: FloatItem[] = adjusted
-    .filter((b) => !isProtected(b) && !isSleep(b) && b.adaptedDuration > 0)
-    .slice()
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((b) => ({
-      key: `routine-${b.id}`,
-      activity: b.activity,
-      category: b.categoryName,
-      source: 'routine' as const,
-      originalDuration: b.durationMin,
-      duration: b.adaptedDuration,
-    }));
+  // sleep terminal: end fixed (original), start anchored to it (later if shortened)
+  const sleep = adjusted.find(isSleep);
+  const sleepEndLin = sleep ? toLinear(timeToMinutes(sleep.start) ?? 1320) + sleep.durationMin : 0;
+  const sleepAnchoredStart = sleep ? sleepEndLin - sleep.adaptedDuration : Number.POSITIVE_INFINITY;
+  const dayLimit = sleep ? sleepAnchoredStart : dayStart + 1440;
 
-  // insert active monthly routines near suggestedBlock, else after last Lazer, else end
-  for (const m of activeMonthly) {
-    const mf: FloatItem = {
-      key: `monthly-${m.id}`,
-      activity: m.name,
-      category: m.categoryName,
-      source: 'monthly',
-      originalDuration: m.durationMin,
-      duration: m.durationMin,
-      note: 'Rotina mensal',
-    };
-    let idx = -1;
-    if (m.suggestedBlock) idx = floats.map((f) => f.category).lastIndexOf(m.suggestedBlock);
-    if (idx === -1) idx = floats.map((f) => f.category).lastIndexOf('Lazer');
-    if (idx === -1) floats.push(mf);
-    else floats.splice(idx + 1, 0, mf);
-  }
-
-  // fixed anchors: protected blocks + events, in linear coords
+  // fixed anchors (protected blocks + events)
   type Fixed = { startLin: number; endLin: number; item: TimelineItem };
   const fixed: Fixed[] = [];
   for (const b of adjusted.filter(isProtected)) {
@@ -314,16 +295,9 @@ export function reflow(
       startLin,
       endLin: startLin + b.adaptedDuration,
       item: {
-        key: `routine-${b.id}`,
-        start: b.start,
-        end: b.end,
-        activity: b.activity,
-        category: b.categoryName,
-        source: 'routine',
-        adapted: false,
-        originalDuration: b.durationMin,
-        adaptedDuration: b.adaptedDuration,
-        removed: false,
+        key: `routine-${b.id}`, start: b.start, end: b.end, activity: b.activity,
+        category: b.categoryName, source: 'routine', adapted: false,
+        originalDuration: b.durationMin, adaptedDuration: b.adaptedDuration, removed: false,
       },
     });
   }
@@ -333,89 +307,127 @@ export function reflow(
       startLin,
       endLin: startLin + ev.durationMin,
       item: {
-        key: `event-${ev.id}`,
-        start: ev.start,
-        end: ev.end,
-        activity: ev.title,
-        category: ev.categoryName,
-        source: 'event',
-        adapted: false,
-        originalDuration: ev.durationMin,
-        adaptedDuration: ev.durationMin,
-        removed: false,
+        key: `event-${ev.id}`, start: ev.start, end: ev.end, activity: ev.title,
+        category: ev.categoryName, source: 'event', adapted: false,
+        originalDuration: ev.durationMin, adaptedDuration: ev.durationMin, removed: false,
       },
     });
   }
   fixed.sort((a, b) => a.startLin - b.startLin);
 
-  const out: TimelineItem[] = [];
-  let cursor = dayStart;
-  let fi = 0;
+  // free slots between anchors, within [dayStart, dayLimit]
+  const slots: Array<{ start: number; end: number }> = [];
+  let prev = dayStart;
+  for (const a of fixed) {
+    if (a.startLin > prev) slots.push({ start: prev, end: a.startLin });
+    prev = Math.max(prev, a.endLin);
+  }
+  if (prev < dayLimit) slots.push({ start: prev, end: dayLimit });
+  if (slots.length === 0) slots.push({ start: prev, end: prev + 1 });
 
-  const placeFloat = (f: FloatItem, at: number) => {
-    out.push({
-      key: f.key,
-      start: minutesToTime(at % 1440),
-      end: minutesToTime((at + f.duration) % 1440),
-      activity: f.activity,
-      category: f.category,
-      source: f.source,
-      adapted: f.duration !== f.originalDuration,
-      originalDuration: f.originalDuration,
-      adaptedDuration: f.duration,
-      removed: false,
-      note: f.note,
+  // floating blocks (duration > 0) with their original linear start
+  const floats: Float[] = adjusted
+    .filter((b) => !isProtected(b) && !isSleep(b) && b.adaptedDuration > 0)
+    .map((b) => ({
+      key: `routine-${b.id}`, activity: b.activity, category: b.categoryName, source: 'routine',
+      originalDuration: b.durationMin, duration: b.adaptedDuration,
+      origStart: toLinear(timeToMinutes(b.start) ?? dayStart),
+    }));
+
+  // active monthly routines: synthetic position near suggestedBlock (else afternoon)
+  for (const m of activeMonthly) {
+    const ref = m.suggestedBlock ? floats.find((f) => f.category === m.suggestedBlock) : undefined;
+    floats.push({
+      key: `monthly-${m.id}`, activity: m.name, category: m.categoryName, source: 'monthly',
+      originalDuration: m.durationMin, duration: m.durationMin, note: 'Rotina mensal',
+      origStart: ref ? ref.origStart + 1 : 13 * 60,
     });
-  };
+  }
+  floats.sort((a, b) => a.origStart - b.origStart);
 
-  for (const anchor of fixed) {
-    while (fi < floats.length && cursor + floats[fi].duration <= anchor.startLin) {
-      placeFloat(floats[fi], cursor);
-      cursor += floats[fi].duration;
-      fi++;
+  // assign each float to the slot containing its original time (or the next slot)
+  const bySlot: Float[][] = slots.map(() => []);
+  for (const f of floats) {
+    let idx = slots.findIndex((s) => f.origStart >= s.start && f.origStart < s.end);
+    if (idx === -1) idx = slots.findIndex((s) => s.start >= f.origStart);
+    if (idx === -1) idx = slots.length - 1;
+    bySlot[idx].push(f);
+  }
+
+  // emit anchors + floats (slot packing with overflow carry), then sort by time
+  const emits: Array<{ startLin: number; item: TimelineItem }> = [];
+  for (const a of fixed) emits.push({ startLin: a.startLin, item: a.item });
+
+  const floatItem = (f: Float, at: number): TimelineItem => ({
+    key: f.key,
+    start: minutesToTime(at % 1440),
+    end: minutesToTime((at + f.duration) % 1440),
+    activity: f.activity,
+    category: f.category,
+    source: f.source,
+    adapted: f.duration !== f.originalDuration,
+    originalDuration: f.originalDuration,
+    adaptedDuration: f.duration,
+    removed: false,
+    note: f.note,
+  });
+
+  let carry: Float[] = [];
+  let tail = dayStart;
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    const queue = [...carry, ...bySlot[i]];
+    carry = [];
+    let cursor = slot.start;
+    for (const f of queue) {
+      // keep the block near its original time when there's room; only slide
+      // forward when the cursor (previous block / anchor) requires it.
+      const desired = Math.max(cursor, Math.min(f.origStart, slot.end - f.duration));
+      if (desired + f.duration <= slot.end) {
+        emits.push({ startLin: desired, item: floatItem(f, desired) });
+        cursor = desired + f.duration;
+      } else {
+        carry.push(f);
+      }
     }
-    out.push(anchor.item);
-    cursor = Math.max(cursor, anchor.endLin);
+    tail = slot.end;
+  }
+  // leftovers that didn't fit any slot go after the last slot (may push sleep)
+  let cursor = tail;
+  for (const f of carry) {
+    emits.push({ startLin: cursor, item: floatItem(f, cursor) });
+    cursor += f.duration;
   }
 
-  // sleep is terminal: end fixed (original), starts later if shortened or pushed
-  const sleep = adjusted.find(isSleep);
-  while (fi < floats.length) {
-    placeFloat(floats[fi], cursor);
-    cursor += floats[fi].duration;
-    fi++;
-  }
   if (sleep) {
-    const sleepEndLin = toLinear(timeToMinutes(sleep.start) ?? 1320) + sleep.durationMin;
-    const start = Math.max(cursor, sleepEndLin - sleep.adaptedDuration);
-    out.push({
-      key: `routine-${sleep.id}`,
-      start: minutesToTime(start % 1440),
-      end: minutesToTime(sleepEndLin % 1440),
-      activity: sleep.activity,
-      category: sleep.categoryName,
-      source: 'routine',
-      adapted: sleep.adaptedDuration !== sleep.durationMin,
-      originalDuration: sleep.durationMin,
-      adaptedDuration: sleep.adaptedDuration,
-      removed: false,
+    const start = Math.max(sleepAnchoredStart, cursor);
+    emits.push({
+      startLin: start,
+      item: {
+        key: `routine-${sleep.id}`,
+        start: minutesToTime(start % 1440),
+        end: minutesToTime(sleepEndLin % 1440),
+        activity: sleep.activity,
+        category: sleep.categoryName,
+        source: 'routine',
+        adapted: sleep.adaptedDuration !== sleep.durationMin,
+        originalDuration: sleep.durationMin,
+        adaptedDuration: sleep.adaptedDuration,
+        removed: false,
+      },
     });
   }
+
+  emits.sort((a, b) => a.startLin - b.startLin);
+  const out = emits.map((e) => e.item);
 
   // removed blocks (cut to zero) surfaced at the end
   const removed: TimelineItem[] = adjusted
     .filter((b) => !isProtected(b) && !isSleep(b) && b.adaptedDuration <= 0)
     .map((b) => ({
-      key: `routine-${b.id}`,
-      start: b.start,
-      end: b.end,
-      activity: b.activity,
-      category: b.categoryName,
-      source: 'routine' as const,
-      adapted: true,
-      originalDuration: b.durationMin,
-      adaptedDuration: 0,
-      removed: true,
+      key: `routine-${b.id}`, start: b.start, end: b.end, activity: b.activity,
+      category: b.categoryName, source: 'routine' as const, adapted: true,
+      originalDuration: b.durationMin, adaptedDuration: 0, removed: true,
     }));
 
   return [...out, ...removed];

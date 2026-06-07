@@ -176,7 +176,7 @@ Dois modos opostos por data:
 
 **Cascata de sacrifício** (determinística): blocos agrupados por `cut_order` crescente (1 corta primeiro), pulando os `protected`. Em cada nível corta-se a mesma fração (`cut/avail`), arredondada a múltiplos de 5 min — então empates (Treino+Estudo) encolhem proporcionalmente. Blocos zerados são removidos. Se a demanda excede todo o tempo cortável → veredito **IMPOSSÍVEL** com o déficit.
 
-**Reflow guloso** (não-ótimo; pequenos ajustes manuais aceitáveis): opera numa linha do tempo linear `[início-do-dia, +1440]` para tratar o Sono que cruza a meia-noite. **Âncoras fixas** mantêm o horário; **flutuantes** preenchem os intervalos na ordem original.
+**Reflow guloso** (não-ótimo; pequenos ajustes manuais aceitáveis): opera numa linha do tempo linear `[início-do-dia, +1440]` para tratar o Sono que cruza a meia-noite. As **âncoras fixas** dividem o dia em *slots* livres; cada bloco flutuante é alocado ao slot do seu **horário original** (manhã fica de manhã, noite à noite) e preserva esse horário quando há folga — desliza para frente só quando uma âncora ocupa seu lugar, e o excedente transborda para o próximo slot. Isso evita re-empilhar o dia inteiro a partir do amanhecer.
 
 **Âncoras fixas:** blocos `protected` (Trabalho), o bloco de **Sono** (fim ancorado — encurtado começa mais tarde) e **todos os compromissos** (têm hora marcada). As rotinas mensais entram como flutuantes, posicionadas perto do `suggested_block` (ou após o último bloco de Lazer).
 
