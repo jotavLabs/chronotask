@@ -31,8 +31,8 @@ function block(id: number, categoryId: number, durationMin: number): EngineBlock
   };
 }
 
-function durOf(blocks: EngineBlock[], id: number) {
-  return blocks.find((b) => b.id === id)!.durationMin;
+function durOf(blocks: Array<{ id: number; adaptedDuration: number }>, id: number) {
+  return blocks.find((b) => b.id === id)!.adaptedDuration;
 }
 
 describe('round5 / computeDemand', () => {

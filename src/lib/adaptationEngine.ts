@@ -9,7 +9,7 @@
 //                     timeline is reflowed around fixed anchors.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { timeToMinutes } from './validation';
+import { minutesToTime, timeToMinutes } from './validation';
 
 export type EngineCategory = {
   id: number;
@@ -67,8 +67,11 @@ export type CascadeLevel = {
   fracPct: number; // % cut, for display
 };
 
+/** Block carrying both its original durationMin and the adapted value. */
+export type AdaptedBlock = EngineBlock & { adaptedDuration: number };
+
 export type CascadeResult = {
-  adjusted: EngineBlock[]; // same blocks, durationMin replaced by adapted value
+  adjusted: AdaptedBlock[];
   cutsByLevel: CascadeLevel[];
   shortfall: number; // minutes that could not be freed (even cutting Sleep)
 };
@@ -123,9 +126,9 @@ export function runCascade(
   }
 
   const shortfall = Math.max(0, remaining);
-  const adjustedBlocks = blocks.map((b) => ({
+  const adjustedBlocks: AdaptedBlock[] = blocks.map((b) => ({
     ...b,
-    durationMin: adjusted.get(b.id) ?? b.durationMin,
+    adaptedDuration: adjusted.get(b.id) ?? b.durationMin,
   }));
   return { adjusted: adjustedBlocks, cutsByLevel, shortfall };
 }
@@ -216,4 +219,203 @@ export function detectConflicts(events: EngineEvent[], anchors: Anchor[]): Confl
     }
   }
   return conflicts;
+}
+
+// ─── reflow ───────────────────────────────────────────────────────────────────
+
+export type TimelineSource = 'routine' | 'event' | 'monthly';
+
+export type TimelineItem = {
+  key: string;
+  start: string; // HH:MM (recomputed)
+  end: string;
+  activity: string;
+  category: string | null;
+  source: TimelineSource;
+  adapted: boolean; // duration changed vs original
+  originalDuration: number;
+  adaptedDuration: number;
+  removed: boolean; // cut to zero
+  conflict?: boolean;
+  note?: string;
+};
+
+type FloatItem = {
+  key: string;
+  activity: string;
+  category: string | null;
+  source: TimelineSource;
+  originalDuration: number;
+  duration: number;
+  note?: string;
+};
+
+/**
+ * Greedy, deterministic reflow (not optimal — small manual tweaks acceptable).
+ * Works in a linear timeline [dayStart, dayStart+1440] so Sono (which crosses
+ * midnight) is handled as the terminal block. Fixed anchors keep their clock
+ * time; floating blocks (incl. active monthly routines) fill the gaps in order.
+ */
+export function reflow(
+  adjusted: AdaptedBlock[],
+  categories: EngineCategory[],
+  events: EngineEvent[],
+  activeMonthly: EngineMonthly[],
+): TimelineItem[] {
+  const catById = new Map(categories.map((c) => [c.id, c]));
+  const catOf = (b: AdaptedBlock) => (b.categoryId != null ? catById.get(b.categoryId) : undefined);
+  const isProtected = (b: AdaptedBlock) => catOf(b)?.protected === 1;
+  const isSleep = (b: AdaptedBlock) => catOf(b)?.name === 'Sono';
+
+  const nonSleep = adjusted.filter((b) => !isSleep(b));
+  const dayStart =
+    nonSleep.length > 0 ? Math.min(...nonSleep.map((b) => timeToMinutes(b.start) ?? 0)) : 360;
+  const toLinear = (min: number) => (min >= dayStart ? min : min + 1440);
+
+  // floating routine blocks (duration > 0), in original order
+  const floats: FloatItem[] = adjusted
+    .filter((b) => !isProtected(b) && !isSleep(b) && b.adaptedDuration > 0)
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((b) => ({
+      key: `routine-${b.id}`,
+      activity: b.activity,
+      category: b.categoryName,
+      source: 'routine' as const,
+      originalDuration: b.durationMin,
+      duration: b.adaptedDuration,
+    }));
+
+  // insert active monthly routines near suggestedBlock, else after last Lazer, else end
+  for (const m of activeMonthly) {
+    const mf: FloatItem = {
+      key: `monthly-${m.id}`,
+      activity: m.name,
+      category: m.categoryName,
+      source: 'monthly',
+      originalDuration: m.durationMin,
+      duration: m.durationMin,
+      note: 'Rotina mensal',
+    };
+    let idx = -1;
+    if (m.suggestedBlock) idx = floats.map((f) => f.category).lastIndexOf(m.suggestedBlock);
+    if (idx === -1) idx = floats.map((f) => f.category).lastIndexOf('Lazer');
+    if (idx === -1) floats.push(mf);
+    else floats.splice(idx + 1, 0, mf);
+  }
+
+  // fixed anchors: protected blocks + events, in linear coords
+  type Fixed = { startLin: number; endLin: number; item: TimelineItem };
+  const fixed: Fixed[] = [];
+  for (const b of adjusted.filter(isProtected)) {
+    const startLin = toLinear(timeToMinutes(b.start) ?? 0);
+    fixed.push({
+      startLin,
+      endLin: startLin + b.adaptedDuration,
+      item: {
+        key: `routine-${b.id}`,
+        start: b.start,
+        end: b.end,
+        activity: b.activity,
+        category: b.categoryName,
+        source: 'routine',
+        adapted: false,
+        originalDuration: b.durationMin,
+        adaptedDuration: b.adaptedDuration,
+        removed: false,
+      },
+    });
+  }
+  for (const ev of events) {
+    const startLin = toLinear(timeToMinutes(ev.start) ?? 0);
+    fixed.push({
+      startLin,
+      endLin: startLin + ev.durationMin,
+      item: {
+        key: `event-${ev.id}`,
+        start: ev.start,
+        end: ev.end,
+        activity: ev.title,
+        category: ev.categoryName,
+        source: 'event',
+        adapted: false,
+        originalDuration: ev.durationMin,
+        adaptedDuration: ev.durationMin,
+        removed: false,
+      },
+    });
+  }
+  fixed.sort((a, b) => a.startLin - b.startLin);
+
+  const out: TimelineItem[] = [];
+  let cursor = dayStart;
+  let fi = 0;
+
+  const placeFloat = (f: FloatItem, at: number) => {
+    out.push({
+      key: f.key,
+      start: minutesToTime(at % 1440),
+      end: minutesToTime((at + f.duration) % 1440),
+      activity: f.activity,
+      category: f.category,
+      source: f.source,
+      adapted: f.duration !== f.originalDuration,
+      originalDuration: f.originalDuration,
+      adaptedDuration: f.duration,
+      removed: false,
+      note: f.note,
+    });
+  };
+
+  for (const anchor of fixed) {
+    while (fi < floats.length && cursor + floats[fi].duration <= anchor.startLin) {
+      placeFloat(floats[fi], cursor);
+      cursor += floats[fi].duration;
+      fi++;
+    }
+    out.push(anchor.item);
+    cursor = Math.max(cursor, anchor.endLin);
+  }
+
+  // sleep is terminal: end fixed (original), starts later if shortened or pushed
+  const sleep = adjusted.find(isSleep);
+  while (fi < floats.length) {
+    placeFloat(floats[fi], cursor);
+    cursor += floats[fi].duration;
+    fi++;
+  }
+  if (sleep) {
+    const sleepEndLin = toLinear(timeToMinutes(sleep.start) ?? 1320) + sleep.durationMin;
+    const start = Math.max(cursor, sleepEndLin - sleep.adaptedDuration);
+    out.push({
+      key: `routine-${sleep.id}`,
+      start: minutesToTime(start % 1440),
+      end: minutesToTime(sleepEndLin % 1440),
+      activity: sleep.activity,
+      category: sleep.categoryName,
+      source: 'routine',
+      adapted: sleep.adaptedDuration !== sleep.durationMin,
+      originalDuration: sleep.durationMin,
+      adaptedDuration: sleep.adaptedDuration,
+      removed: false,
+    });
+  }
+
+  // removed blocks (cut to zero) surfaced at the end
+  const removed: TimelineItem[] = adjusted
+    .filter((b) => !isProtected(b) && !isSleep(b) && b.adaptedDuration <= 0)
+    .map((b) => ({
+      key: `routine-${b.id}`,
+      start: b.start,
+      end: b.end,
+      activity: b.activity,
+      category: b.categoryName,
+      source: 'routine' as const,
+      adapted: true,
+      originalDuration: b.durationMin,
+      adaptedDuration: 0,
+      removed: true,
+    }));
+
+  return [...out, ...removed];
 }
