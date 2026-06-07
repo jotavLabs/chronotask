@@ -99,7 +99,7 @@ export default function SemanaScreen() {
         </View>
         {(extras.has(selectedIso) || selectedLabel === 'Feriado') && (
           <TouchableOpacity
-            onPress={() => router.push({ pathname: '/', params: { date: selectedIso } })}
+            onPress={() => router.navigate({ pathname: '/', params: { date: selectedIso } })}
             className="px-3 py-1.5 rounded-full bg-orange-100 dark:bg-orange-900/40"
           >
             <Text className="text-xs font-semibold text-orange-700 dark:text-orange-300">
