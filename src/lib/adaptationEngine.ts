@@ -9,6 +9,7 @@
 //                     timeline is reflowed around fixed anchors.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { DayLabel } from './dayResolver';
 import { minutesToTime, timeToMinutes } from './validation';
 
 export type EngineCategory = {
@@ -418,4 +419,104 @@ export function reflow(
     }));
 
   return [...out, ...removed];
+}
+
+// ─── orchestration ────────────────────────────────────────────────────────────
+
+export type AdaptedMode = 'FERIADO' | 'NORMAL';
+export type Verdict = 'FERIADO' | 'OK' | 'AJUSTADO' | 'CONFLITO' | 'IMPOSSIVEL';
+
+export type AdaptedDayDeps = {
+  date: string; // ISO YYYY-MM-DD
+  dayLabel: DayLabel;
+  blocks: EngineBlock[];
+  categories: EngineCategory[];
+  events: EngineEvent[];
+  activeMonthly: EngineMonthly[];
+  holidayName?: string | null;
+};
+
+export type AdaptedDay = {
+  date: string;
+  mode: AdaptedMode;
+  demand: number;
+  timeline: TimelineItem[];
+  cutsByLevel: CascadeLevel[];
+  conflicts: Conflict[];
+  shortfall: number;
+  verdict: Verdict;
+  holidayName: string | null;
+};
+
+function markConflicts(timeline: TimelineItem[], conflicts: Conflict[]): void {
+  const keys = new Set(conflicts.map((c) => `event-${c.event.id}`));
+  for (const item of timeline) if (keys.has(item.key)) item.conflict = true;
+}
+
+function noCut(blocks: EngineBlock[]): AdaptedBlock[] {
+  return blocks.map((b) => ({ ...b, adaptedDuration: b.durationMin }));
+}
+
+/**
+ * Builds the Adapted Day for a date, choosing MODE A (holiday: extend/fit) or
+ * MODE B (normal: cascade sacrifice + reflow). Pure: all data comes via deps.
+ */
+export function buildAdaptedDay(deps: AdaptedDayDeps): AdaptedDay {
+  const { date, dayLabel, blocks, categories, events, activeMonthly } = deps;
+  const holidayName = deps.holidayName ?? null;
+  const demand = computeDemand(events, activeMonthly);
+  const anchors = collectAnchors(blocks, categories, events);
+  const conflicts = detectConflicts(events, anchors);
+
+  // MODE A — holiday: never cut, just fit events/monthly into free time.
+  if (dayLabel === 'Feriado') {
+    const timeline = reflow(noCut(blocks), categories, events, activeMonthly);
+    markConflicts(timeline, conflicts);
+    return {
+      date,
+      mode: 'FERIADO',
+      demand,
+      timeline,
+      cutsByLevel: [],
+      conflicts,
+      shortfall: 0,
+      verdict: 'FERIADO',
+      holidayName,
+    };
+  }
+
+  // MODE B — normal: no extra demand → base routine unchanged.
+  if (demand === 0) {
+    const timeline = reflow(noCut(blocks), categories, [], []);
+    return {
+      date,
+      mode: 'NORMAL',
+      demand: 0,
+      timeline,
+      cutsByLevel: [],
+      conflicts,
+      shortfall: 0,
+      verdict: conflicts.length > 0 ? 'CONFLITO' : 'OK',
+      holidayName,
+    };
+  }
+
+  // MODE B — with demand: cascade sacrifice, then reflow.
+  const { adjusted, cutsByLevel, shortfall } = runCascade(blocks, categories, demand);
+  const timeline = reflow(adjusted, categories, events, activeMonthly);
+  markConflicts(timeline, conflicts);
+  const verdict: Verdict =
+    shortfall > 0 ? 'IMPOSSIVEL' : conflicts.length > 0 ? 'CONFLITO' : 'AJUSTADO';
+
+  return {
+    date,
+    mode: 'NORMAL',
+    demand,
+    timeline,
+    cutsByLevel,
+    conflicts,
+    shortfall,
+    verdict,
+    holidayName,
+  };
 }
