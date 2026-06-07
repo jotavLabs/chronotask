@@ -7,10 +7,11 @@ interface Props {
   blocks: BlockWithCategory[];
   doneIds: Set<number>;
   onToggle: (blockId: number) => void;
+  onPressBlock?: (blockId: number) => void;
   emptyMessage?: string;
 }
 
-export function DayList({ isoDate, blocks, doneIds, onToggle, emptyMessage }: Props) {
+export function DayList({ isoDate, blocks, doneIds, onToggle, onPressBlock, emptyMessage }: Props) {
   if (blocks.length === 0) {
     return (
       <View className="flex-1 items-center justify-center py-12">
@@ -30,6 +31,7 @@ export function DayList({ isoDate, blocks, doneIds, onToggle, emptyMessage }: Pr
           block={item}
           done={doneIds.has(item.id)}
           onToggle={() => onToggle(item.id)}
+          onPress={onPressBlock ? () => onPressBlock(item.id) : undefined}
         />
       )}
       contentContainerStyle={{ paddingBottom: 16 }}

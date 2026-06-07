@@ -1,13 +1,12 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DayList } from '@/components/DayList';
 import { resolveDayLabel, getWeekDates, shortWeekdayPt, toIsoDate } from '@/lib/dayResolver';
-import { getBlocksForDay } from '@/repositories/blocksRepo';
 import { buildHolidayDateSet } from '@/repositories/categoriesRepo';
-import { getDoneBlockIds } from '@/repositories/completionsRepo';
 import { useRoutineStore } from '@/store/routineStore';
 
 export default function SemanaScreen() {
@@ -21,14 +20,16 @@ export default function SemanaScreen() {
 
   const { days, dates, loadDay, loadDoneForDate, toggleBlock } = useRoutineStore();
 
-  // Load blocks for all 7 days upfront
-  useEffect(() => {
-    for (const d of weekDates) {
-      const label = resolveDayLabel(d, holidayDates);
-      loadDay(label);
-      loadDoneForDate(toIsoDate(d));
-    }
-  }, []);
+  // Load blocks for all 7 days; refetch on focus so edits show up here.
+  useFocusEffect(
+    useCallback(() => {
+      for (const d of weekDates) {
+        const label = resolveDayLabel(d, holidayDates);
+        loadDay(label);
+        loadDoneForDate(toIsoDate(d));
+      }
+    }, [weekDates, holidayDates]),
+  );
 
   const blocks = days[selectedLabel]?.blocks ?? [];
   const doneIds = dates[selectedIso] ?? new Set<number>();
@@ -98,6 +99,9 @@ export default function SemanaScreen() {
         blocks={blocks}
         doneIds={doneIds}
         onToggle={(blockId) => toggleBlock(selectedIso, blockId)}
+        onPressBlock={(id) =>
+          router.push({ pathname: '/gerenciar/bloco-form', params: { id: String(id) } })
+        }
       />
     </SafeAreaView>
   );

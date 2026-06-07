@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useEffect, useMemo } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DayList } from '@/components/DayList';
@@ -18,10 +19,12 @@ export default function HojeScreen() {
 
   const { days, dates, loadDay, loadDoneForDate, toggleBlock } = useRoutineStore();
 
-  useEffect(() => {
-    loadDay(dayLabel);
-    loadDoneForDate(isoDate);
-  }, [dayLabel, isoDate]);
+  useFocusEffect(
+    useCallback(() => {
+      loadDay(dayLabel);
+      loadDoneForDate(isoDate);
+    }, [dayLabel, isoDate]),
+  );
 
   const blocks = days[dayLabel]?.blocks ?? [];
   const doneIds = dates[isoDate] ?? new Set<number>();
@@ -63,6 +66,9 @@ export default function HojeScreen() {
         blocks={blocks}
         doneIds={doneIds}
         onToggle={(blockId) => toggleBlock(isoDate, blockId)}
+        onPressBlock={(id) =>
+          router.push({ pathname: '/gerenciar/bloco-form', params: { id: String(id) } })
+        }
       />
     </SafeAreaView>
   );
