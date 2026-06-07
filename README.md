@@ -6,20 +6,24 @@ App mobile de controle de rotina pessoal. Local-first, offline-first.
 
 ```bash
 npm install
-npx expo start
+npx expo start --dev-client
 ```
 
-- iOS/Android: escaneie o QR code no Expo Go
-- Web: `w` no terminal (ou `npx expo start --web`)
-- Simulador iOS: `i` | Emulador Android: `a`
+Abra no **development build** (APK gerado via EAS — necessário porque o SDK 56 ainda não está no Expo Go público). Para gerar/atualizar o build:
+
+```bash
+eas build --profile development --platform android
+```
+
+Web não é suportado (expo-sqlite exige SharedArrayBuffer/headers COEP-COOP); mostra tela informativa.
 
 No primeiro launch o banco é criado e populado automaticamente com toda a rotina seed.
 
 ### Pré-requisitos
 
 - Node 20+
-- Expo Go no celular (para device físico)
-- iOS Simulator / Android Emulator (opcional)
+- Development build instalado no device (ver `eas.json`, perfil `development`)
+- Conta Expo (gratuita) para rodar EAS Build
 
 ### Testes
 
@@ -35,18 +39,34 @@ npm test
 src/
 ├── app/
 │   ├── _layout.tsx          # Root layout: migration + seed init
-│   └── (tabs)/
-│       ├── _layout.tsx      # Tab navigator (6 abas)
-│       ├── index.tsx        # Hoje — blocos do dia com checkbox
-│       ├── semana.tsx       # Semana — strip de dias + lista
-│       ├── treino.tsx       # Placeholder Sprint 4
-│       ├── estudos.tsx      # Placeholder Sprint 4
-│       ├── stats.tsx        # Placeholder Sprint 5
-│       └── chat.tsx         # Placeholder Sprint 5
+│   ├── (tabs)/
+│   │   ├── _layout.tsx      # Tab navigator (6 abas) + botão Gerenciar no header
+│   │   ├── index.tsx        # Hoje — blocos do dia com checkbox
+│   │   ├── semana.tsx       # Semana — strip de dias + lista
+│   │   ├── treino.tsx       # Placeholder Sprint 4
+│   │   ├── estudos.tsx      # Placeholder Sprint 4
+│   │   ├── stats.tsx        # Placeholder Sprint 5
+│   │   └── chat.tsx         # Placeholder Sprint 5
+│   └── gerenciar/           # Edição (Stack, fora das abas)
+│       ├── _layout.tsx      # Stack do módulo de edição
+│       ├── index.tsx        # Hub: Blocos / Rotinas mensais / Compromissos
+│       ├── blocos.tsx       # Lista por dia, reordenar, excluir, FAB
+│       ├── bloco-form.tsx   # Criar/editar bloco
+│       ├── mensais.tsx      # Lista com status, agendar, marcar feita, FAB
+│       ├── mensal-form.tsx  # Criar/editar rotina mensal
+│       ├── eventos.tsx      # Próximos compromissos agrupados por data, FAB
+│       └── evento-form.tsx  # Criar/editar compromisso
 ├── components/
-│   ├── BlockCard.tsx        # Card de bloco com checkbox e cor de categoria
+│   ├── BlockCard.tsx        # Card de bloco (checkbox, cor, toque = editar)
 │   ├── DayList.tsx          # FlatList de blocos para um dia
-│   └── CheckBox.tsx         # Checkbox acessível
+│   ├── CheckBox.tsx         # Checkbox acessível
+│   ├── FormField.tsx        # Label + erro + campo
+│   ├── TimeInput.tsx        # Input mascarado HH:MM
+│   ├── DateField.tsx        # Campo de data com mini-calendário (JS puro)
+│   ├── CategoryPicker.tsx   # Chips de categorias
+│   ├── DayPicker.tsx        # Chips Seg…Dom + Feriado
+│   ├── PriorityPicker.tsx   # Alta / Média / Baixa
+│   └── ConfirmDialog.tsx    # Modal de confirmação
 ├── db/
 │   ├── schema.ts            # Drizzle schema (6 tabelas)
 │   ├── client.ts            # openDatabaseSync + drizzle()
@@ -55,13 +75,16 @@ src/
 ├── lib/                     # Funções puras (sem deps de UI ou SQLite)
 │   ├── dayResolver.ts       # resolveDayLabel, toIsoDate, getWeekDates
 │   ├── holidays.ts          # isHolidayPure, getHolidayNamePure
-│   ├── recurrence.ts        # getRoutinesForDate (stub)
+│   ├── validation.ts        # tempo (parse/duração/midnight wrap) + validações de form
+│   ├── recurrence.ts        # getMonthlyStatus, isDoneThisMonth, getRoutinesForDate
 │   ├── adaptationEngine.ts  # Motor de adaptação (stub Sprint 3)
-│   └── __tests__/           # 12 testes unitários
-├── repositories/
-│   ├── blocksRepo.ts        # getBlocksForDay (com join de categoria)
+│   └── __tests__/           # 35 testes unitários
+├── repositories/            # Único lugar com SQL
+│   ├── blocksRepo.ts        # CRUD + reorder/move de blocos (+ limpa completions órfãs)
+│   ├── monthlyRoutinesRepo.ts # CRUD + scheduleMonthly + markMonthlyDone
+│   ├── eventsRepo.ts        # CRUD + getUpcomingEvents
 │   ├── completionsRepo.ts   # getDoneBlockIds, setBlockDone
-│   └── categoriesRepo.ts    # buildHolidayDateSet, buildHolidayMap
+│   └── categoriesRepo.ts    # getAllCategories, buildHolidayDateSet/Map
 └── store/
     └── routineStore.ts      # Zustand: days cache + dates done cache + toggleBlock
 ```
@@ -120,9 +143,19 @@ seg–sex    → 'Seg'|'Ter'|'Qua'|'Qui'|'Sex'
 - Modo claro/escuro automático pelo sistema
 - 12 testes unitários das funções puras
 
-## Sprint 2 — próxima
+## Sprint 2 — entregue
 
-CRUD de blocos de rotina, rotinas mensais e compromissos pontuais. Formulários inline para criar/editar diretamente no app.
+Edição completa dentro do app, acessível pelo botão **⚙️ Gerenciar** no header de Hoje/Semana (hub com 3 áreas). Sem dependências nativas novas: date picker e time input em JS puro; reordenação por setas.
+
+- **Blocos da rotina**: criar, editar, excluir e reordenar blocos de qualquer dia (Seg…Dom e Feriado). Duração derivada automaticamente do início/fim, **com virada de meia-noite** (ex.: Sono 22:00→06:00 = 8h). Excluir um bloco remove suas marcações de conclusão órfãs. Tocar num bloco em Hoje/Semana abre o editor.
+- **Rotinas mensais**: criar/editar/excluir com janela flexível (dia início–fim, 1–31), duração e categoria. Agendar para o mês (date picker) e marcar como feita. Badge de status calculado: HOJE / agendada / agendar / ATRASADA / feita este mês.
+- **Compromissos**: criar/editar/excluir eventos pontuais (data, hora, título, categoria, prioridade), listados por data.
+- Validações puras em `lib/validation.ts`; status mensal puro em `lib/recurrence.ts`. **35 testes** no total.
+- Hoje/Semana recarregam ao ganhar foco, refletindo as edições na hora.
+
+## Sprint 3 — próxima
+
+Motor de adaptação que consome os dados editáveis criados na S2: sacrifício em cascata por prioridade de categoria, reflow de horários, detecção de conflito e feriado estendido. (O schema e a UI de edição já estão prontos; `lib/adaptationEngine.ts` permanece stub até lá.)
 
 ## Mapa de sprints
 
