@@ -1,5 +1,5 @@
-import { Tabs } from 'expo-router';
-import { Text, useColorScheme } from 'react-native';
+import { Link, Tabs } from 'expo-router';
+import { Text, TouchableOpacity, useColorScheme } from 'react-native';
 import type { ColorValue } from 'react-native';
 
 const ACTIVE = '#3B82F6';
@@ -8,6 +8,16 @@ const INACTIVE_DARK = '#6B7280';
 
 function TabIcon({ label }: { label: string; color: ColorValue }) {
   return <Text style={{ fontSize: 18 }}>{label}</Text>;
+}
+
+function ManageButton() {
+  return (
+    <Link href="/gerenciar" asChild>
+      <TouchableOpacity hitSlop={8} style={{ marginRight: 12 }}>
+        <Text style={{ fontSize: 20 }}>⚙️</Text>
+      </TouchableOpacity>
+    </Link>
+  );
 }
 
 export default function TabsLayout() {
@@ -34,6 +44,7 @@ export default function TabsLayout() {
         options={{
           title: 'Hoje',
           tabBarIcon: (p) => <TabIcon label="☀️" color={p.color} />,
+          headerRight: () => <ManageButton />,
         }}
       />
       <Tabs.Screen
@@ -41,6 +52,7 @@ export default function TabsLayout() {
         options={{
           title: 'Semana',
           tabBarIcon: (p) => <TabIcon label="📅" color={p.color} />,
+          headerRight: () => <ManageButton />,
         }}
       />
       <Tabs.Screen
