@@ -42,6 +42,17 @@ export function getUpcomingEvents(fromIso: string): EventWithCategory[] {
   return rows as EventWithCategory[];
 }
 
+export function getEventsByDate(iso: string): EventWithCategory[] {
+  const rows = db
+    .select(selection)
+    .from(events)
+    .leftJoin(categories, eq(events.categoryId, categories.id))
+    .where(eq(events.date, iso))
+    .orderBy(asc(events.start))
+    .all();
+  return rows as EventWithCategory[];
+}
+
 export function getAllEvents(): EventWithCategory[] {
   const rows = db
     .select(selection)
