@@ -1,0 +1,83 @@
+// Hand-written migration bundle in drizzle-orm/expo-sqlite/migrator format.
+// Keys use m + zero-padded idx (e.g. m0000). SQL split by "--> statement-breakpoint".
+// To add a future migration: add a new journal entry and a new m000N key.
+
+const migrations = {
+  journal: {
+    entries: [
+      { idx: 0, when: 0, tag: '0000_initial', breakpoints: true },
+    ],
+  },
+  migrations: {
+    m0000: `
+CREATE TABLE IF NOT EXISTS \`categories\` (
+  \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  \`name\` text NOT NULL,
+  \`cut_order\` integer,
+  \`tie_group\` text,
+  \`protected\` integer NOT NULL DEFAULT 0,
+  \`color\` text
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS \`routine_blocks\` (
+  \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  \`day_label\` text NOT NULL,
+  \`start\` text NOT NULL,
+  \`end\` text NOT NULL,
+  \`duration_min\` integer NOT NULL,
+  \`activity\` text NOT NULL,
+  \`category_id\` integer REFERENCES \`categories\`(\`id\`),
+  \`note\` text,
+  \`sort_order\` integer NOT NULL DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS \`monthly_routines\` (
+  \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  \`name\` text NOT NULL,
+  \`window_start_day\` integer NOT NULL,
+  \`window_end_day\` integer NOT NULL,
+  \`duration_min\` integer NOT NULL,
+  \`scheduled_date\` text,
+  \`last_done\` text,
+  \`suggested_block\` text,
+  \`category_id\` integer REFERENCES \`categories\`(\`id\`)
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS \`events\` (
+  \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  \`date\` text NOT NULL,
+  \`start\` text NOT NULL,
+  \`end\` text NOT NULL,
+  \`title\` text NOT NULL,
+  \`category_id\` integer REFERENCES \`categories\`(\`id\`),
+  \`duration_min\` integer NOT NULL,
+  \`priority\` text
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS \`holidays\` (
+  \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  \`date\` text NOT NULL,
+  \`name\` text NOT NULL,
+  \`type\` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS \`completions\` (
+  \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  \`date\` text NOT NULL,
+  \`ref_type\` text NOT NULL,
+  \`ref_id\` integer NOT NULL,
+  \`done\` integer NOT NULL DEFAULT 0,
+  \`value_note\` text,
+  \`logged_at\` text NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS \`completions_date_idx\` ON \`completions\` (\`date\`);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS \`blocks_day_idx\` ON \`routine_blocks\` (\`day_label\`);
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS \`completion_unique\` ON \`completions\` (\`date\`, \`ref_type\`, \`ref_id\`);
+    `,
+  },
+};
+
+export default migrations;
