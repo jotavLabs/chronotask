@@ -23,6 +23,12 @@ const ENTRIES: Entry[] = [
     title: 'Compromissos',
     subtitle: 'Eventos pontuais com data e hora',
   },
+  {
+    href: '/gerenciar/categorias',
+    icon: '🎨',
+    title: 'Categorias & prioridades',
+    subtitle: 'Ordem de corte, protegidas e cores do motor',
+  },
 ];
 
 export default function GerenciarHub() {
