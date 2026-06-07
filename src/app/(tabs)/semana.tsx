@@ -6,6 +6,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DayList } from '@/components/DayList';
 import { resolveDayLabel, getWeekDates, shortWeekdayPt, toIsoDate } from '@/lib/dayResolver';
+import { getDatesWithExtras } from '@/repositories/adaptedDayRepo';
 import { buildHolidayDateSet } from '@/repositories/categoriesRepo';
 import { useRoutineStore } from '@/store/routineStore';
 
@@ -19,6 +20,7 @@ export default function SemanaScreen() {
   const selectedLabel = resolveDayLabel(selectedDate, holidayDates);
 
   const { days, dates, loadDay, loadDoneForDate, toggleBlock } = useRoutineStore();
+  const [extras, setExtras] = useState<Set<string>>(new Set());
 
   // Load blocks for all 7 days; refetch on focus so edits show up here.
   useFocusEffect(
@@ -28,6 +30,7 @@ export default function SemanaScreen() {
         loadDay(label);
         loadDoneForDate(toIsoDate(d));
       }
+      setExtras(getDatesWithExtras(weekDates.map(toIsoDate)));
     }, [weekDates, holidayDates]),
   );
 
@@ -49,6 +52,7 @@ export default function SemanaScreen() {
             const dayBlocks = days[label]?.blocks ?? [];
             const dayDone = dates[iso] ?? new Set<number>();
             const allDone = dayBlocks.length > 0 && dayBlocks.every((b) => dayDone.has(b.id));
+            const hasExtras = extras.has(iso);
 
             return (
               <TouchableOpacity
@@ -72,12 +76,11 @@ export default function SemanaScreen() {
                 >
                   {d.getDate()}
                 </Text>
-                {isFeriado && (
-                  <View className="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-0.5" />
-                )}
-                {allDone && (
-                  <View className="w-1.5 h-1.5 rounded-full bg-green-400 mt-0.5" />
-                )}
+                <View className="flex-row gap-0.5 mt-0.5 h-1.5">
+                  {isFeriado && <View className="w-1.5 h-1.5 rounded-full bg-yellow-400" />}
+                  {hasExtras && <View className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
+                  {allDone && <View className="w-1.5 h-1.5 rounded-full bg-green-400" />}
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -85,12 +88,24 @@ export default function SemanaScreen() {
       </View>
 
       {/* Selected day header */}
-      <View className="px-4 py-3">
-        <Text className="text-base font-semibold text-gray-800 dark:text-gray-100 capitalize">
-          {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
-        </Text>
-        {selectedLabel === 'Feriado' && (
-          <Text className="text-xs text-yellow-600 dark:text-yellow-400 mt-0.5">Feriado</Text>
+      <View className="px-4 py-3 flex-row items-center justify-between">
+        <View className="flex-1">
+          <Text className="text-base font-semibold text-gray-800 dark:text-gray-100 capitalize">
+            {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
+          </Text>
+          {selectedLabel === 'Feriado' && (
+            <Text className="text-xs text-yellow-600 dark:text-yellow-400 mt-0.5">Feriado</Text>
+          )}
+        </View>
+        {(extras.has(selectedIso) || selectedLabel === 'Feriado') && (
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/', params: { date: selectedIso } })}
+            className="px-3 py-1.5 rounded-full bg-orange-100 dark:bg-orange-900/40"
+          >
+            <Text className="text-xs font-semibold text-orange-700 dark:text-orange-300">
+              Ver dia adaptado →
+            </Text>
+          </TouchableOpacity>
         )}
       </View>
 

@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AdaptedSummary } from '@/components/AdaptedSummary';
@@ -17,10 +17,21 @@ function parseKey(key: string): { source: string; id: number } {
   return { source: key.slice(0, idx), id: Number(key.slice(idx + 1)) };
 }
 
+function isoToDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export default function HojeScreen() {
-  const [date, setDate] = useState(() => new Date());
+  const params = useLocalSearchParams<{ date?: string }>();
+  const [date, setDate] = useState<Date>(() => (params.date ? isoToDate(params.date) : new Date()));
   const [day, setDay] = useState<AdaptedDay | null>(null);
   const { dates, loadDoneForDate, toggleBlock } = useRoutineStore();
+
+  // jump to the date requested from Semana ("ver dia adaptado")
+  useEffect(() => {
+    if (params.date) setDate(isoToDate(params.date));
+  }, [params.date]);
 
   const colorByName = useMemo(() => {
     const m = new Map<string, string>();

@@ -56,3 +56,18 @@ export function loadAdaptedDay(date: Date): AdaptedDay {
 
   return buildAdaptedDay({ date: iso, dayLabel, blocks, categories, events, activeMonthly, holidayName });
 }
+
+/**
+ * Lightweight check (no engine run): which of the given ISO dates have extras
+ * (an event or a scheduled monthly routine) — used by Semana to flag adjustments.
+ */
+export function getDatesWithExtras(isos: string[]): Set<string> {
+  const set = new Set<string>();
+  for (const iso of isos) {
+    if (getEventsByDate(iso).length > 0) set.add(iso);
+  }
+  for (const m of getAllMonthly()) {
+    if (m.scheduledDate && isos.includes(m.scheduledDate)) set.add(m.scheduledDate);
+  }
+  return set;
+}
