@@ -18,6 +18,7 @@ export default function GerenciarLayout() {
     >
       <Stack.Screen name="index" options={{ title: 'Gerenciar' }} />
       <Stack.Screen name="blocos" options={{ title: 'Blocos da rotina' }} />
+      <Stack.Screen name="bloco-form" options={{ title: 'Bloco', presentation: 'modal' }} />
       <Stack.Screen name="mensais" options={{ title: 'Rotinas mensais' }} />
       <Stack.Screen name="eventos" options={{ title: 'Compromissos' }} />
     </Stack>

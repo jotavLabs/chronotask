@@ -23,9 +23,14 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
   dates: {},
 
   loadDay(dayLabel) {
-    if (get().days[dayLabel]) return; // already loaded
+    // Always refetch so edits made in the "Gerenciar" screens show up here.
     const blocks = getBlocksForDay(dayLabel);
-    set((s) => ({ days: { ...s.days, [dayLabel]: { blocks, doneIds: new Set() } } }));
+    set((s) => ({
+      days: {
+        ...s.days,
+        [dayLabel]: { blocks, doneIds: s.days[dayLabel]?.doneIds ?? new Set() },
+      },
+    }));
   },
 
   loadDoneForDate(isoDate) {
