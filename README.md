@@ -174,15 +174,21 @@ Dois modos opostos por data:
 - **MODO A — Feriado** (`day_label = 'Feriado'`): estende o template e **encaixa** compromissos/mensais no tempo livre. Nada é cortado.
 - **MODO B — Carga extra** (dia normal/fim de semana com compromisso e/ou rotina mensal agendada): a demanda `D = Σ eventos + Σ mensais agendadas` é retirada da rotina.
 
-**Cascata de sacrifício** (determinística): blocos agrupados por `cut_order` crescente (1 corta primeiro), pulando os `protected`. Em cada nível corta-se a mesma fração (`cut/avail`), arredondada a múltiplos de 5 min — então empates (Treino+Estudo) encolhem proporcionalmente. Blocos zerados são removidos. Se a demanda excede todo o tempo cortável → veredito **IMPOSSÍVEL** com o déficit.
+**Cascata de sacrifício** (determinística): blocos agrupados por `cut_order` crescente (1 corta primeiro), pulando os `protected` **e o Sono** (imóvel). Em cada nível corta-se a mesma fração (`cut/avail`), arredondada a múltiplos de 5 min — então empates (Treino+Estudo) encolhem proporcionalmente. Blocos zerados são removidos. Se a demanda excede todo o tempo cortável → veredito **IMPOSSÍVEL** com o déficit.
 
-**Reflow guloso** (não-ótimo; pequenos ajustes manuais aceitáveis): opera numa linha do tempo linear `[início-do-dia, +1440]` para tratar o Sono que cruza a meia-noite. As **âncoras fixas** dividem o dia em *slots* livres; cada bloco flutuante é alocado ao slot do seu **horário original** (manhã fica de manhã, noite à noite) e preserva esse horário quando há folga — desliza para frente só quando uma âncora ocupa seu lugar, e o excedente transborda para o próximo slot. Isso evita re-empilhar o dia inteiro a partir do amanhecer.
+**Reflow por barreiras** (determinístico; pequenos ajustes manuais aceitáveis). Invariantes garantidos por construção (ver `checkWindowInvariants`):
 
-O **tempo livre (categoria Lazer)** é um *buffer divisível*: quando um compromisso cai no meio dele, o bloco é **partido** — parte antes da âncora, parte depois (ex.: Lazer 09:00–18:00 com compromisso 13:00–15:00 vira Lazer 09:00–13:00 + compromisso + Lazer 15:00–19:00). Os demais blocos não se dividem (transbordam inteiros).
+- **Janela de atividades** `[winStart, winEnd]` derivada do Sono (padrão 06:00–22:00). Nenhum bloco cruza 06:00 ou 22:00.
+- **Sono imóvel**: exatamente 22:00–06:00, nunca cortado nem deslocado.
+- **Conservação de tempo**: a janela permanece cheia — encaixar um compromisso de `C` min libera `C` min de outras atividades (via cascata), nunca esticando o dia.
 
-**Âncoras fixas:** blocos `protected` (Trabalho), o bloco de **Sono** (fim ancorado — encurtado começa mais tarde) e **todos os compromissos** (têm hora marcada). As rotinas mensais entram como flutuantes, posicionadas perto do `suggested_block` (ou após o último bloco de Lazer).
+As **âncoras fixas** (Trabalho, compromissos) mantêm o horário e dividem a janela em *segmentos*. As atividades rígidas são recolocadas em ordem nos segmentos; o **tempo livre (Lazer/Leitura) é uma folga elástica** que encolhe, se divide e se reposiciona ao redor das âncoras — em vez de empurrar o dia para frente.
 
-**Conflito:** compromisso que se sobrepõe a uma âncora protegida (Trabalho/Sono). O motor não corta blocos protegidos — devolve o conflito para a UI avisar.
+Exemplos (tempo livre 17:30–18:30): compromisso 17:30–18:00 → folga vira 18:00–18:30; compromisso 18:00–18:30 → folga fica 17:30–18:00; compromisso 17:45–18:15 → folga se divide (17:30–17:45 + 18:15–18:30). Em todos, o Sono permanece 22:00 e nada mais se move.
+
+**Árvore de prioridade** quando o compromisso não cai sobre tempo livre: atividade de baixa prioridade cede o lugar e é realocada para um espaço livre; atividade de alta prioridade não encolhe — a cascata corta outras de menor prioridade e a importante é realocada; **Trabalho/Sono** geram **conflito** (o motor não corta protegidos — devolve para a UI avisar).
+
+**Limitações**: o reflow é guloso (não busca o ótimo); o tempo livre é fundido por categoria (Lazer/Leitura) como buffer; o caso extremo de demanda maior que toda a janela vira IMPOSSÍVEL (o Sono não cede). As rotinas mensais entram como atividades rígidas perto do `suggested_block`.
 
 ## Sprint 4 — próxima
 
