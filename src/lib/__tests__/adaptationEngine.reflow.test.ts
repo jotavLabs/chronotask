@@ -1,174 +1,164 @@
-import { reflow } from '../adaptationEngine';
-import type { AdaptedBlock, EngineCategory, EngineEvent, EngineMonthly } from '../adaptationEngine';
+import { buildAdaptedDay, checkWindowInvariants, reflow } from '../adaptationEngine';
+import type {
+  AdaptedBlock,
+  AdaptedDayDeps,
+  EngineBlock,
+  EngineCategory,
+  EngineEvent,
+} from '../adaptationEngine';
 
 const CATS: EngineCategory[] = [
   { id: 1, name: 'Trabalho', cutOrder: null, protected: 1, tieGroup: null },
   { id: 2, name: 'Sono', cutOrder: 5, protected: 0, tieGroup: null },
+  { id: 3, name: 'Rotina', cutOrder: 4, protected: 0, tieGroup: null },
   { id: 4, name: 'Alimentação', cutOrder: 3, protected: 0, tieGroup: null },
-  { id: 6, name: 'Estudo', cutOrder: 2, protected: 0, tieGroup: null },
+  { id: 5, name: 'Treino', cutOrder: 2, protected: 0, tieGroup: 'treino_estudo' },
+  { id: 6, name: 'Estudo', cutOrder: 2, protected: 0, tieGroup: 'treino_estudo' },
   { id: 7, name: 'Lazer', cutOrder: 1, protected: 0, tieGroup: null },
 ];
 
 function ab(
   id: number,
-  categoryId: number,
+  catId: number,
   start: string,
   end: string,
-  durationMin: number,
-  adaptedDuration = durationMin,
+  dur: number,
+  adapted = dur,
 ): AdaptedBlock {
-  const name = CATS.find((c) => c.id === categoryId)?.name ?? null;
-  return {
-    id,
-    activity: name ?? `b${id}`,
-    start,
-    end,
-    durationMin,
-    adaptedDuration,
-    categoryId,
-    categoryName: name,
-    sortOrder: id,
-  };
+  const name = CATS.find((c) => c.id === catId)?.name ?? null;
+  return { id, activity: name ?? `b${id}`, start, end, durationMin: dur, adaptedDuration: adapted, categoryId: catId, categoryName: name, sortOrder: id };
 }
 
-// Café 06:00, Estudo 06:30, Trabalho 08:30, Almoço 12:00, Lazer 13:00, Sono 22:00
-const DAY: AdaptedBlock[] = [
-  ab(1, 4, '06:00', '06:30', 30),
-  ab(2, 6, '06:30', '08:30', 120),
-  ab(3, 1, '08:30', '12:00', 210),
-  ab(4, 4, '12:00', '13:00', 60),
-  ab(5, 7, '13:00', '14:00', 60),
-  ab(6, 2, '22:00', '06:00', 480),
+function eb(id: number, catId: number, start: string, end: string, dur: number): EngineBlock {
+  const name = CATS.find((c) => c.id === catId)?.name ?? null;
+  return { id, activity: name ?? `b${id}`, start, end, durationMin: dur, categoryId: catId, categoryName: name, sortOrder: id };
+}
+
+const find = (tl: ReturnType<typeof reflow>, key: string) => tl.find((i) => i.key === key);
+
+// Base routine: Trabalho fills the morning, Lazer 17:30–18:30, Jantar, Estudo, Sono.
+// Window 06:00–22:00 = 960 min (690 + 60 + 60 + 150).
+const BASE_ADJ: AdaptedBlock[] = [
+  ab(1, 1, '06:00', '17:30', 690), // Trabalho (protected)
+  ab(2, 7, '17:30', '18:30', 60), // Lazer (free)
+  ab(3, 4, '18:30', '19:30', 60), // Jantar
+  ab(4, 6, '19:30', '22:00', 150), // Estudo
+  ab(5, 2, '22:00', '06:00', 480), // Sono
 ];
 
-function find(items: ReturnType<typeof reflow>, key: string) {
-  return items.find((i) => i.key === key);
+function withLazer(adapted: number): AdaptedBlock[] {
+  return BASE_ADJ.map((b) => (b.id === 2 ? { ...b, adaptedDuration: adapted } : b));
 }
 
-describe('reflow — base day (no extras)', () => {
-  const tl = reflow(DAY, CATS, [], []);
+const event = (start: string, end: string, dur: number): EngineEvent => ({
+  id: 9, title: 'Compromisso', start, end, durationMin: dur, categoryName: null,
+});
 
-  it('preserves original clock times when nothing is cut', () => {
-    expect(find(tl, 'routine-1')).toMatchObject({ start: '06:00', end: '06:30' });
-    expect(find(tl, 'routine-2')).toMatchObject({ start: '06:30', end: '08:30' });
-    expect(find(tl, 'routine-3')).toMatchObject({ start: '08:30', end: '12:00' }); // Trabalho anchor
-    expect(find(tl, 'routine-5')).toMatchObject({ start: '13:00', end: '14:00' });
-    expect(find(tl, 'routine-6')).toMatchObject({ start: '22:00', end: '06:00' }); // Sono terminal
+describe('reflow — free time absorbs the event (cases 1–3)', () => {
+  it('1. event starts with the free block → free time moves after it', () => {
+    const tl = reflow(withLazer(30), CATS, [event('17:30', '18:00', 30)], []);
+    expect(find(tl, 'routine-2')).toMatchObject({ start: '18:00', end: '18:30' });
+    expect(find(tl, 'event-9')).toMatchObject({ start: '17:30', end: '18:00' });
+    expect(find(tl, 'routine-3')).toMatchObject({ start: '18:30', end: '19:30' }); // Jantar unmoved
+    expect(find(tl, 'routine-5')).toMatchObject({ start: '22:00', end: '06:00' }); // Sono fixed
+    expect(checkWindowInvariants(tl)).toEqual([]);
   });
 
-  it('marks nothing as adapted/removed', () => {
-    expect(tl.every((i) => !i.adapted && !i.removed)).toBe(true);
+  it('2. event ends with the free block → free time stays before it', () => {
+    const tl = reflow(withLazer(30), CATS, [event('18:00', '18:30', 30)], []);
+    expect(find(tl, 'routine-2')).toMatchObject({ start: '17:30', end: '18:00' });
+    expect(find(tl, 'event-9')).toMatchObject({ start: '18:00', end: '18:30' });
+    expect(find(tl, 'routine-3')).toMatchObject({ start: '18:30', end: '19:30' });
+    expect(checkWindowInvariants(tl)).toEqual([]);
+  });
+
+  it('3. event in the middle → free time splits around it', () => {
+    const tl = reflow(withLazer(30), CATS, [event('17:45', '18:15', 30)], []);
+    expect(find(tl, 'routine-2')).toMatchObject({ start: '17:30', end: '17:45' });
+    expect(find(tl, 'routine-2#2')).toMatchObject({ start: '18:15', end: '18:30', refId: 2 });
+    expect(find(tl, 'event-9')).toMatchObject({ start: '17:45', end: '18:15' });
+    expect(find(tl, 'routine-5')).toMatchObject({ start: '22:00', end: '06:00' });
+    expect(checkWindowInvariants(tl)).toEqual([]);
   });
 });
 
-describe('reflow — event anchor + removed block', () => {
-  // Lazer cut to 0 (removed); event 14:00-16:00 fixed
-  const adjusted = DAY.map((b) => (b.id === 5 ? { ...b, adaptedDuration: 0 } : b));
-  const event: EngineEvent = {
-    id: 9,
-    title: 'Reunião',
-    start: '14:00',
-    end: '16:00',
-    durationMin: 120,
-    categoryName: 'Trabalho',
-  };
-  const tl = reflow(adjusted, CATS, [event], []);
+// Pipeline helper (cascade + reflow) for cases that exercise the cascade.
+function deps(over: Partial<AdaptedDayDeps>): AdaptedDayDeps {
+  return { date: '2026-06-08', dayLabel: 'Seg', blocks: [], categories: CATS, events: [], activeMonthly: [], ...over };
+}
 
-  it('keeps the event at its fixed time', () => {
-    expect(find(tl, 'event-9')).toMatchObject({ start: '14:00', end: '16:00', source: 'event' });
+describe('reflow — cascade integration with barriers (cases 4–7)', () => {
+  it('4. 60-min event with only 30 of local free time → cascade frees the rest, nothing past 22:00', () => {
+    const blocks = [
+      eb(1, 1, '06:00', '17:00', 660), // Trabalho
+      eb(2, 7, '17:00', '17:30', 30), // Lazer (only 30 free)
+      eb(3, 5, '17:30', '19:00', 90), // Treino
+      eb(4, 4, '19:00', '20:00', 60), // Jantar
+      eb(5, 6, '20:00', '22:00', 120), // Estudo
+      eb(6, 2, '22:00', '06:00', 480), // Sono
+    ];
+    const d = buildAdaptedDay(deps({ blocks, events: [event('17:00', '18:00', 60)] }));
+    expect(d.verdict).toBe('AJUSTADO');
+    expect(find(d.timeline, 'routine-2')).toMatchObject({ removed: true }); // local free consumed
+    // 30 from free (Lazer→0), 30 from the cascade across the tied level 2 (Treino+Estudo)
+    expect(d.timeline.find((i) => i.refId === 3 && !i.removed)?.adaptedDuration).toBe(75); // Treino 90→75
+    expect(d.timeline.find((i) => i.refId === 5 && !i.removed)?.adaptedDuration).toBe(105); // Estudo 120→105
+    expect(checkWindowInvariants(d.timeline)).toEqual([]);
   });
 
-  it('surfaces the zero-duration block as removed', () => {
-    expect(find(tl, 'routine-5')).toMatchObject({ removed: true, adaptedDuration: 0 });
-  });
-});
-
-describe('reflow — shortened sleep starts later', () => {
-  const adjusted = DAY.map((b) => (b.id === 6 ? { ...b, adaptedDuration: 360 } : b));
-  const tl = reflow(adjusted, CATS, [], []);
-
-  it('anchors sleep end and pushes its start', () => {
-    const sleep = find(tl, 'routine-6');
-    expect(sleep).toMatchObject({ start: '00:00', end: '06:00', adapted: true });
-  });
-});
-
-describe('reflow — midday event keeps morning in place, no cascade to dawn', () => {
-  // Café 06:00, Trabalho 08:30, Almoço 12:00, Tarde livre 13:00-17:00 (cut to 0),
-  // Jantar 19:00, Sono 22:00. Event 13:00-17:00.
-  const day = [
-    ab(1, 4, '06:00', '06:30', 30),
-    ab(2, 1, '08:30', '12:00', 210),
-    ab(3, 4, '12:00', '13:00', 60),
-    ab(4, 7, '13:00', '17:00', 240, 0), // Lazer cut to zero by cascade
-    ab(5, 4, '19:00', '20:00', 60), // Jantar
-    ab(6, 2, '22:00', '06:00', 480),
-  ];
-  const event: EngineEvent = { id: 9, title: 'Compromisso', start: '13:00', end: '17:00', durationMin: 240, categoryName: null };
-  const tl = reflow(day, CATS, [event], []);
-
-  it('keeps morning blocks at their original time', () => {
-    expect(find(tl, 'routine-1')).toMatchObject({ start: '06:00', end: '06:30' });
+  it('5. event over a low-priority activity → it yields the slot and is re-placed; Sono 22:00', () => {
+    const blocks = [
+      eb(1, 1, '06:00', '13:00', 420), // Trabalho
+      eb(2, 5, '13:00', '15:00', 120), // Treino (low priority, under the event)
+      eb(3, 7, '15:00', '16:00', 60), // Lazer
+      eb(4, 4, '16:00', '17:00', 60), // Jantar
+      eb(5, 6, '17:00', '22:00', 300), // Estudo
+      eb(6, 2, '22:00', '06:00', 480), // Sono
+    ];
+    const d = buildAdaptedDay(deps({ blocks, events: [event('13:00', '13:30', 30)] }));
+    expect(d.verdict).toBe('AJUSTADO');
+    const treino = d.timeline.find((i) => i.refId === 2 && !i.removed);
+    expect(treino?.start).toBe('13:30'); // Treino re-placed after the event
+    expect(treino?.adaptedDuration).toBe(120); // not shortened (free paid)
+    expect(checkWindowInvariants(d.timeline)).toEqual([]);
   });
 
-  it('fills up to the event (no empty gap before it)', () => {
-    expect(find(tl, 'routine-3')).toMatchObject({ start: '12:00', end: '13:00' });
+  it('6. event over a high-priority activity → lower priority is cut, high one re-placed', () => {
+    const blocks = [
+      eb(1, 1, '06:00', '18:00', 720), // Trabalho
+      eb(2, 4, '18:00', '19:00', 60), // Jantar (higher priority than Lazer/Estudo)
+      eb(3, 7, '19:00', '20:00', 60), // Lazer
+      eb(4, 6, '20:00', '22:00', 120), // Estudo
+      eb(5, 2, '22:00', '06:00', 480), // Sono
+    ];
+    const d = buildAdaptedDay(deps({ blocks, events: [event('18:00', '18:30', 30)] }));
+    const jantar = d.timeline.find((i) => i.refId === 2 && !i.removed);
+    expect(jantar?.adaptedDuration).toBe(60); // Jantar not shortened
+    expect(jantar?.start).toBe('18:30'); // re-placed after the event
+    expect(d.cutsByLevel[0]?.cutOrder).toBe(1); // Lazer (lower priority) cut first
+    expect(checkWindowInvariants(d.timeline)).toEqual([]);
   });
 
-  it('keeps the event fixed and the evening block in the evening (not pushed to dawn)', () => {
-    expect(find(tl, 'event-9')).toMatchObject({ start: '13:00', end: '17:00' });
-    expect(find(tl, 'routine-5')).toMatchObject({ start: '19:00', end: '20:00' }); // Jantar
-    expect(find(tl, 'routine-6')).toMatchObject({ start: '22:00', end: '06:00' }); // Sono
-  });
-
-  it('removes the block that was cut to zero', () => {
-    expect(find(tl, 'routine-4')).toMatchObject({ removed: true });
-  });
-});
-
-describe('reflow — event inside free time splits Lazer around it', () => {
-  // Café 08:00, Lazer 09:00-18:00 (9h cut to 8h), Jantar 19:00, Sono 22:00.
-  // Event 13:00-15:00 falls inside the Lazer block.
-  const day = [
-    ab(1, 4, '08:00', '09:00', 60),
-    ab(2, 7, '09:00', '18:00', 540, 480), // Lazer (splittable), cut to 8h
-    ab(3, 4, '19:00', '20:00', 60), // Jantar
-    ab(4, 2, '22:00', '06:00', 480), // Sono
-  ];
-  const event: EngineEvent = { id: 9, title: 'Compromisso', start: '13:00', end: '15:00', durationMin: 120, categoryName: null };
-  const tl = reflow(day, CATS, [event], []);
-
-  it('keeps free time before the event', () => {
-    expect(find(tl, 'routine-2')).toMatchObject({ start: '09:00', end: '13:00' });
-  });
-
-  it('keeps the event at its fixed time', () => {
-    expect(find(tl, 'event-9')).toMatchObject({ start: '13:00', end: '15:00' });
-  });
-
-  it('resumes free time after the event (second fragment)', () => {
-    expect(find(tl, 'routine-2#2')).toMatchObject({ start: '15:00', end: '19:00', refId: 2 });
-  });
-
-  it('keeps the evening block and sleep in place', () => {
-    expect(find(tl, 'routine-3')).toMatchObject({ start: '19:00', end: '20:00' });
-    expect(find(tl, 'routine-4')).toMatchObject({ start: '22:00', end: '06:00' });
+  it('7. event over Trabalho → conflict, protected block untouched', () => {
+    const blocks = [
+      eb(1, 1, '06:00', '18:00', 720), // Trabalho
+      eb(2, 7, '18:00', '19:00', 60),
+      eb(3, 4, '19:00', '20:00', 60),
+      eb(4, 6, '20:00', '22:00', 120),
+      eb(5, 2, '22:00', '06:00', 480),
+    ];
+    const d = buildAdaptedDay(deps({ blocks, events: [event('10:00', '11:00', 60)] }));
+    expect(d.verdict).toBe('CONFLITO');
+    expect(d.conflicts[0].anchorKind).toBe('protected');
+    expect(d.timeline.find((i) => i.refId === 1)?.adaptedDuration).toBe(720); // Trabalho intact
   });
 });
 
-describe('reflow — monthly routine placement', () => {
-  const monthly: EngineMonthly = {
-    id: 3,
-    name: 'Cortar o cabelo',
-    durationMin: 60,
-    suggestedBlock: 'Lazer',
-    categoryName: 'Lazer',
-  };
-  const tl = reflow(DAY, CATS, [], [monthly]);
-
-  it('inserts the monthly routine into the timeline', () => {
-    const m = find(tl, 'monthly-3');
-    expect(m).toBeDefined();
-    expect(m).toMatchObject({ source: 'monthly', adaptedDuration: 60 });
+describe('reflow — base day and invariants', () => {
+  it('no event → base routine unchanged, invariants hold', () => {
+    const tl = reflow(BASE_ADJ, CATS, [], []);
+    expect(find(tl, 'routine-2')).toMatchObject({ start: '17:30', end: '18:30' });
+    expect(find(tl, 'routine-5')).toMatchObject({ start: '22:00', end: '06:00' });
+    expect(checkWindowInvariants(tl)).toEqual([]);
   });
 });
