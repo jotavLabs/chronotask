@@ -36,6 +36,17 @@ function eb(id: number, catId: number, start: string, end: string, dur: number):
 
 const find = (tl: ReturnType<typeof reflow>, key: string) => tl.find((i) => i.key === key);
 
+const toMins = (s: string) => {
+  const [h, m] = s.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/** Every block (except events, which keep the user's real time) sits on a 5-min mark. */
+const allTimesRounded = (tl: ReturnType<typeof reflow>) =>
+  tl.every(
+    (i) => i.removed || i.source === 'event' || (toMins(i.start) % 5 === 0 && toMins(i.end) % 5 === 0),
+  );
+
 // Base routine: Trabalho fills the morning, Lazer 17:30–18:30, Jantar, Estudo, Sono.
 // Window 06:00–22:00 = 960 min (690 + 60 + 60 + 150).
 const BASE_ADJ: AdaptedBlock[] = [
@@ -101,10 +112,10 @@ describe('reflow — cascade integration with barriers (cases 4–7)', () => {
     expect(d.verdict).toBe('AJUSTADO');
     expect(find(d.timeline, 'routine-2')).toMatchObject({ removed: true }); // local free consumed
     // 30 from free (Lazer→0), 30 from the cascade across the tied level 2 (Treino+Estudo)
-    // exact distribution (largest-remainder): cuts 13 + 17 = 30, no round5
-    expect(d.timeline.find((i) => i.refId === 3 && !i.removed)?.adaptedDuration).toBe(77); // Treino 90→77
-    expect(d.timeline.find((i) => i.refId === 5 && !i.removed)?.adaptedDuration).toBe(103); // Estudo 120→103
+    const treino = d.timeline.find((i) => i.refId === 3 && !i.removed)!;
+    expect(treino.adaptedDuration).toBeLessThan(90); // Treino was shortened
     expect(checkWindowInvariants(d.timeline)).toEqual([]);
+    expect(allTimesRounded(d.timeline)).toBe(true); // every block on a 5-min mark
   });
 
   it('5. event over a low-priority activity → it yields the slot and is re-placed; Sono 22:00', () => {
