@@ -435,7 +435,15 @@ export function reflow(
   // safety net: close any leftover gaps so the window is fully contiguous and
   // the last activity ends exactly at winEnd (touching Sono)
   emits.sort((a, b) => a.start - b.start);
-  const windowItems = closeGaps(emits.map((e) => e.item), winStart, winEnd);
+  const anchorBounds = new Set<number>();
+  for (const a of fixed) {
+    anchorBounds.add(a.start);
+    anchorBounds.add(a.end);
+  }
+  let windowItems = closeGaps(emits.map((e) => e.item), winStart, winEnd);
+  // round every non-anchor boundary to 5-min marks (aesthetics) without creating
+  // gaps or breaking conservation; anchors (events/work) keep their real time
+  windowItems = snapTo5(windowItems, winStart, winEnd, anchorBounds);
 
   // Sono: immovable, anchored to the window end (always winEnd–winStart)
   const out: TimelineItem[] = [...windowItems];
@@ -525,6 +533,68 @@ function closeGaps(items: TimelineItem[], winStart: number, winEnd: number): Tim
     else result.push(filler(cursor, winEnd));
   }
   return result;
+}
+
+const snap5 = (m: number) => Math.round(m / 5) * 5;
+
+/**
+ * Rounds every internal boundary of a contiguous timeline to a 5-minute mark, so
+ * activities read as 18:00–18:45 instead of 17:57–18:42. Anchor edges (events /
+ * Trabalho) keep their real clock time, and winStart/winEnd stay put — so the
+ * window remains contiguous (no gaps) and conserved (boundaries only shift, the
+ * total stays winEnd−winStart). A block collapsed to 0 by rounding is dropped
+ * (its minutes flow into the neighbour).
+ */
+function snapTo5(
+  items: TimelineItem[],
+  winStart: number,
+  winEnd: number,
+  anchorBounds: Set<number>,
+): TimelineItem[] {
+  if (items.length === 0) return items;
+  const toMin = (s: string) => timeToMinutes(s) ?? 0;
+  const isFree = (it: TimelineItem) => it.category != null && FREE_CATEGORIES.has(it.category);
+
+  // split the contiguous spine from overlapping items (conflicts) — the latter
+  // keep their real time and are not snapped.
+  const sorted = [...items].sort((a, b) => toMin(a.start) - toMin(b.start));
+  const spine: TimelineItem[] = [];
+  const overlap: TimelineItem[] = [];
+  let cur = winStart;
+  for (const it of sorted) {
+    if (toMin(it.start) >= cur) {
+      spine.push(it);
+      cur = Math.max(cur, toMin(it.end));
+    } else {
+      overlap.push(it);
+    }
+  }
+  if (spine.length === 0) return items;
+
+  const bounds = [winStart, ...spine.map((it) => toMin(it.end))];
+  bounds[bounds.length - 1] = winEnd;
+  for (let i = 1; i < bounds.length - 1; i++) {
+    if (anchorBounds.has(bounds[i])) continue; // keep real anchor times
+    bounds[i] = Math.max(bounds[i - 1], Math.min(snap5(bounds[i]), bounds[i + 1]));
+  }
+
+  const result: TimelineItem[] = [];
+  for (let i = 0; i < spine.length; i++) {
+    const s = bounds[i];
+    const e = bounds[i + 1];
+    if (e <= s) continue; // collapsed by rounding
+    const it = spine[i];
+    const dur = e - s;
+    result.push({
+      ...it,
+      start: minutesToTime(s % DAY_END),
+      end: minutesToTime(e % DAY_END),
+      adaptedDuration: dur,
+      originalDuration: isFree(it) ? dur : it.originalDuration,
+      adapted: !isFree(it) && it.source !== 'event' && dur !== it.originalDuration,
+    });
+  }
+  return [...result, ...overlap];
 }
 
 /**
