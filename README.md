@@ -174,7 +174,7 @@ Dois modos opostos por data:
 - **MODO A — Feriado** (`day_label = 'Feriado'`): estende o template e **encaixa** compromissos/mensais no tempo livre. Nada é cortado.
 - **MODO B — Carga extra** (dia normal/fim de semana com compromisso e/ou rotina mensal agendada): a demanda `D = Σ eventos + Σ mensais agendadas` é retirada da rotina.
 
-**Cascata de sacrifício** (determinística): blocos agrupados por `cut_order` crescente (1 corta primeiro), pulando os `protected` **e o Sono** (imóvel). Em cada nível corta-se a mesma fração (`cut/avail`), arredondada a múltiplos de 5 min — então empates (Treino+Estudo) encolhem proporcionalmente. Blocos zerados são removidos. Se a demanda excede todo o tempo cortável → veredito **IMPOSSÍVEL** com o déficit.
+**Cascata de sacrifício** (determinística): blocos agrupados por `cut_order` crescente (1 corta primeiro), pulando os `protected` **e o Sono** (imóvel). Em cada nível o corte é proporcional (`cut/avail`) e distribuído em **minutos inteiros cuja soma é exatamente a demanda** (largest-remainder) — **sem `round5`**, para não cortar a mais nem criar excedente (que virava buraco). Empates (Treino+Estudo) encolhem proporcionalmente; blocos zerados são removidos; o arredondamento fica só na **exibição** (`formatDuration`). Se a demanda excede todo o tempo cortável → veredito **IMPOSSÍVEL** com o déficit.
 
 **Reflow por barreiras** (determinístico; pequenos ajustes manuais aceitáveis). Invariantes garantidos por construção (ver `checkWindowInvariants`):
 
@@ -187,6 +187,8 @@ As **âncoras fixas** (Trabalho, compromissos) mantêm o horário e dividem a ja
 Exemplos (tempo livre 17:30–18:30): compromisso 17:30–18:00 → folga vira 18:00–18:30; compromisso 18:00–18:30 → folga fica 17:30–18:00; compromisso 17:45–18:15 → folga se divide (17:30–17:45 + 18:15–18:30). Em todos, o Sono permanece 22:00 e nada mais se move.
 
 **Árvore de prioridade** quando o compromisso não cai sobre tempo livre: atividade de baixa prioridade cede o lugar e é realocada para um espaço livre; atividade de alta prioridade não encolhe — a cascata corta outras de menor prioridade e a importante é realocada; **Trabalho/Sono** geram **conflito** (o motor não corta protegidos — devolve para a UI avisar).
+
+**Passe de fechamento de gaps** (`closeGaps`, rede de segurança): após o reflow, varre a janela 06:00→22:00 e elimina qualquer buraco residual — preferindo **estender o tempo livre adjacente** (de onde o tempo saiu) e, na falta de vizinho flexível, inserindo um bloco **"Tempo livre"**. Garante que a última atividade termine exatamente às 22:00, encostando no Sono, sem nenhum *sliver* vazio.
 
 **Limitações**: o reflow é guloso (não busca o ótimo); o tempo livre é fundido por categoria (Lazer/Leitura) como buffer; o caso extremo de demanda maior que toda a janela vira IMPOSSÍVEL (o Sono não cede). As rotinas mensais entram como atividades rígidas perto do `suggested_block`.
 
