@@ -228,6 +228,7 @@ export type TimelineSource = 'routine' | 'event' | 'monthly';
 
 export type TimelineItem = {
   key: string;
+  refId: number; // id of the underlying block/event/monthly routine
   start: string; // HH:MM (recomputed)
   end: string;
   activity: string;
@@ -241,17 +242,23 @@ export type TimelineItem = {
   note?: string;
 };
 
-type FloatItem = {
-  key: string;
+/** Free-time category treated as a divisible buffer, split around fixed anchors. */
+const SPLITTABLE_CATEGORY = 'Lazer';
+const MIN_SPLIT = 15; // never create a fragment smaller than this (minutes)
+
+type Float = {
+  baseKey: string;
+  refId: number;
+  source: TimelineSource;
   activity: string;
   category: string | null;
-  source: TimelineSource;
   originalDuration: number;
   duration: number;
+  origStart: number;
+  splittable: boolean;
+  fragment?: boolean;
   note?: string;
 };
-
-type Float = FloatItem & { origStart: number };
 
 /**
  * Greedy, deterministic reflow (not optimal — small manual tweaks acceptable).
@@ -295,7 +302,7 @@ export function reflow(
       startLin,
       endLin: startLin + b.adaptedDuration,
       item: {
-        key: `routine-${b.id}`, start: b.start, end: b.end, activity: b.activity,
+        key: `routine-${b.id}`, refId: b.id, start: b.start, end: b.end, activity: b.activity,
         category: b.categoryName, source: 'routine', adapted: false,
         originalDuration: b.durationMin, adaptedDuration: b.adaptedDuration, removed: false,
       },
@@ -307,7 +314,7 @@ export function reflow(
       startLin,
       endLin: startLin + ev.durationMin,
       item: {
-        key: `event-${ev.id}`, start: ev.start, end: ev.end, activity: ev.title,
+        key: `event-${ev.id}`, refId: ev.id, start: ev.start, end: ev.end, activity: ev.title,
         category: ev.categoryName, source: 'event', adapted: false,
         originalDuration: ev.durationMin, adaptedDuration: ev.durationMin, removed: false,
       },
@@ -329,18 +336,21 @@ export function reflow(
   const floats: Float[] = adjusted
     .filter((b) => !isProtected(b) && !isSleep(b) && b.adaptedDuration > 0)
     .map((b) => ({
-      key: `routine-${b.id}`, activity: b.activity, category: b.categoryName, source: 'routine',
+      baseKey: `routine-${b.id}`, refId: b.id, source: 'routine' as const,
+      activity: b.activity, category: b.categoryName,
       originalDuration: b.durationMin, duration: b.adaptedDuration,
       origStart: toLinear(timeToMinutes(b.start) ?? dayStart),
+      splittable: b.categoryName === SPLITTABLE_CATEGORY,
     }));
 
   // active monthly routines: synthetic position near suggestedBlock (else afternoon)
   for (const m of activeMonthly) {
     const ref = m.suggestedBlock ? floats.find((f) => f.category === m.suggestedBlock) : undefined;
     floats.push({
-      key: `monthly-${m.id}`, activity: m.name, category: m.categoryName, source: 'monthly',
+      baseKey: `monthly-${m.id}`, refId: m.id, source: 'monthly',
+      activity: m.name, category: m.categoryName,
       originalDuration: m.durationMin, duration: m.durationMin, note: 'Rotina mensal',
-      origStart: ref ? ref.origStart + 1 : 13 * 60,
+      origStart: ref ? ref.origStart + 1 : 13 * 60, splittable: false,
     });
   }
   floats.sort((a, b) => a.origStart - b.origStart);
@@ -354,23 +364,38 @@ export function reflow(
     bySlot[idx].push(f);
   }
 
-  // emit anchors + floats (slot packing with overflow carry), then sort by time
+  // emit anchors + floats (slot packing with split + overflow carry), then sort
   const emits: Array<{ startLin: number; item: TimelineItem }> = [];
   for (const a of fixed) emits.push({ startLin: a.startLin, item: a.item });
 
-  const floatItem = (f: Float, at: number): TimelineItem => ({
-    key: f.key,
-    start: minutesToTime(at % 1440),
-    end: minutesToTime((at + f.duration) % 1440),
-    activity: f.activity,
-    category: f.category,
-    source: f.source,
-    adapted: f.duration !== f.originalDuration,
-    originalDuration: f.originalDuration,
-    adaptedDuration: f.duration,
-    removed: false,
-    note: f.note,
-  });
+  // unique render keys (a split block shares its refId but needs distinct keys)
+  const fragCount = new Map<string, number>();
+  const keyFor = (baseKey: string) => {
+    const n = (fragCount.get(baseKey) ?? 0) + 1;
+    fragCount.set(baseKey, n);
+    return n === 1 ? baseKey : `${baseKey}#${n}`;
+  };
+
+  const emit = (f: Float, at: number, pieceDur: number) => {
+    const whole = pieceDur === f.duration && !f.fragment;
+    emits.push({
+      startLin: at,
+      item: {
+        key: keyFor(f.baseKey),
+        refId: f.refId,
+        start: minutesToTime(at % 1440),
+        end: minutesToTime((at + pieceDur) % 1440),
+        activity: f.activity,
+        category: f.category,
+        source: f.source,
+        adapted: whole ? f.duration !== f.originalDuration : false,
+        originalDuration: whole ? f.originalDuration : pieceDur,
+        adaptedDuration: whole ? f.duration : pieceDur,
+        removed: false,
+        note: f.note,
+      },
+    });
+  };
 
   let carry: Float[] = [];
   let tail = dayStart;
@@ -380,12 +405,21 @@ export function reflow(
     carry = [];
     let cursor = slot.start;
     for (const f of queue) {
-      // keep the block near its original time when there's room; only slide
-      // forward when the cursor (previous block / anchor) requires it.
-      const desired = Math.max(cursor, Math.min(f.origStart, slot.end - f.duration));
-      if (desired + f.duration <= slot.end) {
-        emits.push({ startLin: desired, item: floatItem(f, desired) });
+      const available = slot.end - cursor;
+      if (available <= 0) {
+        carry.push(f);
+        continue;
+      }
+      if (f.duration <= available) {
+        // fits whole: keep near its original time when there's room
+        const desired = Math.max(cursor, Math.min(f.origStart, slot.end - f.duration));
+        emit(f, desired, f.duration);
         cursor = desired + f.duration;
+      } else if (f.splittable && available >= MIN_SPLIT) {
+        // free-time buffer: place the part that fits, carry the rest past the anchor
+        emit(f, cursor, available);
+        carry.push({ ...f, duration: f.duration - available, origStart: slot.end, fragment: true });
+        cursor = slot.end;
       } else {
         carry.push(f);
       }
@@ -395,7 +429,7 @@ export function reflow(
   // leftovers that didn't fit any slot go after the last slot (may push sleep)
   let cursor = tail;
   for (const f of carry) {
-    emits.push({ startLin: cursor, item: floatItem(f, cursor) });
+    emit(f, cursor, f.duration);
     cursor += f.duration;
   }
 
@@ -405,6 +439,7 @@ export function reflow(
       startLin: start,
       item: {
         key: `routine-${sleep.id}`,
+        refId: sleep.id,
         start: minutesToTime(start % 1440),
         end: minutesToTime(sleepEndLin % 1440),
         activity: sleep.activity,
@@ -425,7 +460,7 @@ export function reflow(
   const removed: TimelineItem[] = adjusted
     .filter((b) => !isProtected(b) && !isSleep(b) && b.adaptedDuration <= 0)
     .map((b) => ({
-      key: `routine-${b.id}`, start: b.start, end: b.end, activity: b.activity,
+      key: `routine-${b.id}`, refId: b.id, start: b.start, end: b.end, activity: b.activity,
       category: b.categoryName, source: 'routine' as const, adapted: true,
       originalDuration: b.durationMin, adaptedDuration: 0, removed: true,
     }));

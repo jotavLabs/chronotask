@@ -12,11 +12,6 @@ import { loadAdaptedDay } from '@/repositories/adaptedDayRepo';
 import { getAllCategories } from '@/repositories/categoriesRepo';
 import { useRoutineStore } from '@/store/routineStore';
 
-function parseKey(key: string): { source: string; id: number } {
-  const idx = key.indexOf('-');
-  return { source: key.slice(0, idx), id: Number(key.slice(idx + 1)) };
-}
-
 function isoToDate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -52,7 +47,7 @@ export default function HojeScreen() {
   const isToday = iso === toIsoDate(new Date());
 
   const routineItems = day ? day.timeline.filter((i) => i.source === 'routine' && !i.removed) : [];
-  const doneCount = routineItems.filter((i) => doneIds.has(parseKey(i.key).id)).length;
+  const doneCount = routineItems.filter((i) => doneIds.has(i.refId)).length;
 
   function shiftDay(delta: number) {
     const d = new Date(date);
@@ -60,8 +55,7 @@ export default function HojeScreen() {
     setDate(d);
   }
 
-  function openEditor(key: string) {
-    const { source, id } = parseKey(key);
+  function openEditor(source: string, id: number) {
     const pathname =
       source === 'event'
         ? '/gerenciar/evento-form'
@@ -107,16 +101,19 @@ export default function HojeScreen() {
           contentContainerStyle={{ paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => {
-            const { source, id } = parseKey(item.key);
             const color = (item.category ? colorByName.get(item.category) : null) ?? '#6B7280';
-            const done = source === 'routine' && doneIds.has(id);
+            const done = item.source === 'routine' && doneIds.has(item.refId);
             return (
               <TimelineRow
                 item={item}
                 color={color}
                 done={done}
-                onToggle={source === 'routine' && !item.removed ? () => toggleBlock(iso, id) : undefined}
-                onPress={() => openEditor(item.key)}
+                onToggle={
+                  item.source === 'routine' && !item.removed
+                    ? () => toggleBlock(iso, item.refId)
+                    : undefined
+                }
+                onPress={() => openEditor(item.source, item.refId)}
               />
             );
           }}

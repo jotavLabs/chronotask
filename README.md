@@ -178,6 +178,8 @@ Dois modos opostos por data:
 
 **Reflow guloso** (não-ótimo; pequenos ajustes manuais aceitáveis): opera numa linha do tempo linear `[início-do-dia, +1440]` para tratar o Sono que cruza a meia-noite. As **âncoras fixas** dividem o dia em *slots* livres; cada bloco flutuante é alocado ao slot do seu **horário original** (manhã fica de manhã, noite à noite) e preserva esse horário quando há folga — desliza para frente só quando uma âncora ocupa seu lugar, e o excedente transborda para o próximo slot. Isso evita re-empilhar o dia inteiro a partir do amanhecer.
 
+O **tempo livre (categoria Lazer)** é um *buffer divisível*: quando um compromisso cai no meio dele, o bloco é **partido** — parte antes da âncora, parte depois (ex.: Lazer 09:00–18:00 com compromisso 13:00–15:00 vira Lazer 09:00–13:00 + compromisso + Lazer 15:00–19:00). Os demais blocos não se dividem (transbordam inteiros).
+
 **Âncoras fixas:** blocos `protected` (Trabalho), o bloco de **Sono** (fim ancorado — encurtado começa mais tarde) e **todos os compromissos** (têm hora marcada). As rotinas mensais entram como flutuantes, posicionadas perto do `suggested_block` (ou após o último bloco de Lazer).
 
 **Conflito:** compromisso que se sobrepõe a uma âncora protegida (Trabalho/Sono). O motor não corta blocos protegidos — devolve o conflito para a UI avisar.
