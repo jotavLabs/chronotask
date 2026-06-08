@@ -1,75 +1,124 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { DayList } from '@/components/DayList';
-import { resolveDayLabel, toIsoDate } from '@/lib/dayResolver';
-import { getHolidayNamePure } from '@/lib/holidays';
-import { buildHolidayDateSet, buildHolidayMap } from '@/repositories/categoriesRepo';
+import { AdaptedSummary } from '@/components/AdaptedSummary';
+import { TimelineRow } from '@/components/TimelineRow';
+import type { AdaptedDay } from '@/lib/adaptationEngine';
+import { toIsoDate } from '@/lib/dayResolver';
+import { loadAdaptedDay } from '@/repositories/adaptedDayRepo';
+import { getAllCategories } from '@/repositories/categoriesRepo';
 import { useRoutineStore } from '@/store/routineStore';
 
+function isoToDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export default function HojeScreen() {
-  const today = useMemo(() => new Date(), []);
-  const isoDate = toIsoDate(today);
+  const params = useLocalSearchParams<{ date?: string }>();
+  const [date, setDate] = useState<Date>(() => (params.date ? isoToDate(params.date) : new Date()));
+  const [day, setDay] = useState<AdaptedDay | null>(null);
+  const { dates, loadDoneForDate, toggleBlock } = useRoutineStore();
 
-  const holidayDates = useMemo(() => buildHolidayDateSet(), []);
-  const dayLabel = useMemo(() => resolveDayLabel(today, holidayDates), [today, holidayDates]);
+  // jump to the date requested from Semana ("ver dia adaptado")
+  useEffect(() => {
+    if (params.date) setDate(isoToDate(params.date));
+  }, [params.date]);
 
-  const { days, dates, loadDay, loadDoneForDate, toggleBlock } = useRoutineStore();
+  const colorByName = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of getAllCategories()) if (c.color) m.set(c.name, c.color);
+    return m;
+  }, []);
+
+  const iso = toIsoDate(date);
 
   useFocusEffect(
     useCallback(() => {
-      loadDay(dayLabel);
-      loadDoneForDate(isoDate);
-    }, [dayLabel, isoDate]),
+      setDay(loadAdaptedDay(date));
+      loadDoneForDate(iso);
+    }, [date, iso]),
   );
 
-  const blocks = days[dayLabel]?.blocks ?? [];
-  const doneIds = dates[isoDate] ?? new Set<number>();
+  const doneIds = dates[iso] ?? new Set<number>();
+  const isToday = iso === toIsoDate(new Date());
 
-  const holidayMap = useMemo(() => buildHolidayMap(), []);
-  const isHoliday = dayLabel === 'Feriado';
-  const holidayName = isHoliday ? getHolidayNamePure(isoDate, holidayMap) : null;
+  const routineItems = day ? day.timeline.filter((i) => i.source === 'routine' && !i.removed) : [];
+  const doneCount = routineItems.filter((i) => doneIds.has(i.refId)).length;
 
-  const dateLabel = format(today, "EEEE, d 'de' MMMM", { locale: ptBR });
-  const doneCount = blocks.filter((b) => doneIds.has(b.id)).length;
+  function shiftDay(delta: number) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + delta);
+    setDate(d);
+  }
+
+  function openEditor(source: string, id: number) {
+    const pathname =
+      source === 'event'
+        ? '/gerenciar/evento-form'
+        : source === 'monthly'
+          ? '/gerenciar/mensal-form'
+          : '/gerenciar/bloco-form';
+    router.push({ pathname, params: { id: String(id) } });
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50 dark:bg-gray-900" edges={['bottom']}>
-      {/* Header */}
-      <View className="px-4 pt-4 pb-2">
-        <Text className="text-xl font-bold text-gray-900 dark:text-white capitalize">{dateLabel}</Text>
-        <View className="flex-row items-center mt-1 gap-2">
-          <View
-            className="px-2 py-0.5 rounded-full"
-            style={{ backgroundColor: isHoliday ? '#FEF3C7' : '#DBEAFE' }}
-          >
-            <Text
-              className="text-xs font-medium"
-              style={{ color: isHoliday ? '#92400E' : '#1E40AF' }}
-            >
-              {isHoliday ? `Feriado${holidayName ? ` — ${holidayName}` : ''}` : dayLabel}
-            </Text>
-          </View>
-          {blocks.length > 0 && (
-            <Text className="text-xs text-gray-400 dark:text-gray-500">
-              {doneCount}/{blocks.length} concluídos
-            </Text>
+      {/* date selector */}
+      <View className="flex-row items-center justify-between px-4 pt-3 pb-2">
+        <TouchableOpacity onPress={() => shiftDay(-1)} hitSlop={10} className="px-2">
+          <Text className="text-2xl text-blue-600">‹</Text>
+        </TouchableOpacity>
+        <View className="items-center">
+          <Text className="text-base font-bold text-gray-900 dark:text-white capitalize">
+            {format(date, "EEEE, d 'de' MMM", { locale: ptBR })}
+          </Text>
+          {isToday ? (
+            routineItems.length > 0 ? (
+              <Text className="text-xs text-gray-400 dark:text-gray-500">
+                {doneCount}/{routineItems.length} concluídos
+              </Text>
+            ) : null
+          ) : (
+            <TouchableOpacity onPress={() => setDate(new Date())} hitSlop={6}>
+              <Text className="text-xs text-blue-600">voltar para hoje</Text>
+            </TouchableOpacity>
           )}
         </View>
+        <TouchableOpacity onPress={() => shiftDay(1)} hitSlop={10} className="px-2">
+          <Text className="text-2xl text-blue-600">›</Text>
+        </TouchableOpacity>
       </View>
 
-      <DayList
-        isoDate={isoDate}
-        blocks={blocks}
-        doneIds={doneIds}
-        onToggle={(blockId) => toggleBlock(isoDate, blockId)}
-        onPressBlock={(id) =>
-          router.push({ pathname: '/gerenciar/bloco-form', params: { id: String(id) } })
-        }
-      />
+      {day && (
+        <FlatList
+          data={day.timeline}
+          keyExtractor={(item) => item.key}
+          ListHeaderComponent={<AdaptedSummary day={day} />}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => {
+            const color = (item.category ? colorByName.get(item.category) : null) ?? '#6B7280';
+            const done = item.source === 'routine' && doneIds.has(item.refId);
+            return (
+              <TimelineRow
+                item={item}
+                color={color}
+                done={done}
+                onToggle={
+                  item.source === 'routine' && !item.removed
+                    ? () => toggleBlock(iso, item.refId)
+                    : undefined
+                }
+                onPress={() => openEditor(item.source, item.refId)}
+              />
+            );
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }

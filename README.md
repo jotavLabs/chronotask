@@ -47,18 +47,22 @@ src/
 │   │   ├── estudos.tsx      # Placeholder Sprint 4
 │   │   ├── stats.tsx        # Placeholder Sprint 5
 │   │   └── chat.tsx         # Placeholder Sprint 5
-│   └── gerenciar/           # Edição (Stack, fora das abas)
+│   └── gerenciar/           # Edição + config (Stack, fora das abas)
 │       ├── _layout.tsx      # Stack do módulo de edição
-│       ├── index.tsx        # Hub: Blocos / Rotinas mensais / Compromissos
+│       ├── index.tsx        # Hub: Blocos / Mensais / Compromissos / Categorias
 │       ├── blocos.tsx       # Lista por dia, reordenar, excluir, FAB
 │       ├── bloco-form.tsx   # Criar/editar bloco
 │       ├── mensais.tsx      # Lista com status, agendar, marcar feita, FAB
 │       ├── mensal-form.tsx  # Criar/editar rotina mensal
 │       ├── eventos.tsx      # Próximos compromissos agrupados por data, FAB
-│       └── evento-form.tsx  # Criar/editar compromisso
+│       ├── evento-form.tsx  # Criar/editar compromisso
+│       ├── categorias.tsx   # Lista de categorias por ordem de corte
+│       └── categoria-form.tsx # Cor, protegida, ordem de corte, grupo de empate
 ├── components/
 │   ├── BlockCard.tsx        # Card de bloco (checkbox, cor, toque = editar)
 │   ├── DayList.tsx          # FlatList de blocos para um dia
+│   ├── TimelineRow.tsx      # Item do Dia Adaptado (horário, Δ, selos)
+│   ├── AdaptedSummary.tsx   # Painel de resumo (modo, cortes, conflitos, veredito)
 │   ├── CheckBox.tsx         # Checkbox acessível
 │   ├── FormField.tsx        # Label + erro + campo
 │   ├── TimeInput.tsx        # Input mascarado HH:MM
@@ -77,14 +81,15 @@ src/
 │   ├── holidays.ts          # isHolidayPure, getHolidayNamePure
 │   ├── validation.ts        # tempo (parse/duração/midnight wrap) + validações de form
 │   ├── recurrence.ts        # getMonthlyStatus, isDoneThisMonth, getRoutinesForDate
-│   ├── adaptationEngine.ts  # Motor de adaptação (stub Sprint 3)
-│   └── __tests__/           # 35 testes unitários
+│   ├── adaptationEngine.ts  # Motor: cascata, conflitos, reflow, buildAdaptedDay
+│   └── __tests__/           # 60 testes unitários
 ├── repositories/            # Único lugar com SQL
 │   ├── blocksRepo.ts        # CRUD + reorder/move de blocos (+ limpa completions órfãs)
 │   ├── monthlyRoutinesRepo.ts # CRUD + scheduleMonthly + markMonthlyDone
-│   ├── eventsRepo.ts        # CRUD + getUpcomingEvents
+│   ├── eventsRepo.ts        # CRUD + getUpcomingEvents + getEventsByDate
 │   ├── completionsRepo.ts   # getDoneBlockIds, setBlockDone
-│   └── categoriesRepo.ts    # getAllCategories, buildHolidayDateSet/Map
+│   ├── categoriesRepo.ts    # CRUD de categorias + isCuttable + holidays helpers
+│   └── adaptedDayRepo.ts    # loadAdaptedDay (monta deps e chama o motor)
 └── store/
     └── routineStore.ts      # Zustand: days cache + dates done cache + toggleBlock
 ```
@@ -153,9 +158,35 @@ Edição completa dentro do app, acessível pelo botão **⚙️ Gerenciar** no 
 - Validações puras em `lib/validation.ts`; status mensal puro em `lib/recurrence.ts`. **35 testes** no total.
 - Hoje/Semana recarregam ao ganhar foco, refletindo as edições na hora.
 
-## Sprint 3 — próxima
+## Sprint 3 — entregue
 
-Motor de adaptação que consome os dados editáveis criados na S2: sacrifício em cascata por prioridade de categoria, reflow de horários, detecção de conflito e feriado estendido. (O schema e a UI de edição já estão prontos; `lib/adaptationEngine.ts` permanece stub até lá.)
+O **motor de adaptação** (`lib/adaptationEngine.ts`, puro e testável) transforma a rotina-base no **Dia Adaptado** de uma data. Telas só consomem o resultado via `repositories/adaptedDayRepo.ts`.
+
+- **Hoje** renderiza o Dia Adaptado (não mais a rotina crua): horários recalculados, duração original riscada + nova com selo "ajustado", itens "cortado hoje" esmaecidos, compromissos/mensais destacados, selo "⚠ conflito". Painel de resumo (modo, demanda, cortes por nível, veredito) e seletor de data.
+- **Semana**: dot laranja nos dias com ajustes (evento/mensal agendada) + botão "Ver dia adaptado".
+- **Categorias & prioridades**: editar `cut_order`, `protected`, `tie_group` e cor; criar/excluir. Reflete direto no motor; valida que sempre exista um nível cortável.
+- **60 testes** cobrindo cascata, conflitos, reflow e os 6 cenários de aceitação.
+
+### Como o motor funciona
+
+Dois modos opostos por data:
+
+- **MODO A — Feriado** (`day_label = 'Feriado'`): estende o template e **encaixa** compromissos/mensais no tempo livre. Nada é cortado.
+- **MODO B — Carga extra** (dia normal/fim de semana com compromisso e/ou rotina mensal agendada): a demanda `D = Σ eventos + Σ mensais agendadas` é retirada da rotina.
+
+**Cascata de sacrifício** (determinística): blocos agrupados por `cut_order` crescente (1 corta primeiro), pulando os `protected`. Em cada nível corta-se a mesma fração (`cut/avail`), arredondada a múltiplos de 5 min — então empates (Treino+Estudo) encolhem proporcionalmente. Blocos zerados são removidos. Se a demanda excede todo o tempo cortável → veredito **IMPOSSÍVEL** com o déficit.
+
+**Reflow guloso** (não-ótimo; pequenos ajustes manuais aceitáveis): opera numa linha do tempo linear `[início-do-dia, +1440]` para tratar o Sono que cruza a meia-noite. As **âncoras fixas** dividem o dia em *slots* livres; cada bloco flutuante é alocado ao slot do seu **horário original** (manhã fica de manhã, noite à noite) e preserva esse horário quando há folga — desliza para frente só quando uma âncora ocupa seu lugar, e o excedente transborda para o próximo slot. Isso evita re-empilhar o dia inteiro a partir do amanhecer.
+
+O **tempo livre (categoria Lazer)** é um *buffer divisível*: quando um compromisso cai no meio dele, o bloco é **partido** — parte antes da âncora, parte depois (ex.: Lazer 09:00–18:00 com compromisso 13:00–15:00 vira Lazer 09:00–13:00 + compromisso + Lazer 15:00–19:00). Os demais blocos não se dividem (transbordam inteiros).
+
+**Âncoras fixas:** blocos `protected` (Trabalho), o bloco de **Sono** (fim ancorado — encurtado começa mais tarde) e **todos os compromissos** (têm hora marcada). As rotinas mensais entram como flutuantes, posicionadas perto do `suggested_block` (ou após o último bloco de Lazer).
+
+**Conflito:** compromisso que se sobrepõe a uma âncora protegida (Trabalho/Sono). O motor não corta blocos protegidos — devolve o conflito para a UI avisar.
+
+## Sprint 4 — próxima
+
+Abas **Treino** e **Estudos**: detalhamento e acompanhamento dos blocos dessas categorias (sem mexer no motor, que já consome os dados).
 
 ## Mapa de sprints
 

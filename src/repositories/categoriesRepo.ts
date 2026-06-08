@@ -1,5 +1,7 @@
+import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { categories, holidays } from '@/db/schema';
+import { categories, events, holidays, monthlyRoutines, routineBlocks } from '@/db/schema';
+import type { Category } from '@/db/schema';
 
 export function getAllCategories() {
   return db.select().from(categories).all();
@@ -8,6 +10,60 @@ export function getAllCategories() {
 export function buildCategoryMap(): Map<number, typeof categories.$inferSelect> {
   const all = getAllCategories();
   return new Map(all.map((c) => [c.id, c]));
+}
+
+export type CategoryInput = {
+  name: string;
+  cutOrder: number | null;
+  protected: number;
+  tieGroup: string | null;
+  color: string | null;
+};
+
+export function createCategory(input: CategoryInput): number {
+  const row = db
+    .insert(categories)
+    .values({
+      name: input.name.trim(),
+      cutOrder: input.protected === 1 ? null : input.cutOrder,
+      protected: input.protected,
+      tieGroup: input.tieGroup?.trim() || null,
+      color: input.color,
+    })
+    .returning({ id: categories.id })
+    .get();
+  return row!.id;
+}
+
+export function updateCategory(id: number, input: CategoryInput): void {
+  db
+    .update(categories)
+    .set({
+      name: input.name.trim(),
+      cutOrder: input.protected === 1 ? null : input.cutOrder,
+      protected: input.protected,
+      tieGroup: input.tieGroup?.trim() || null,
+      color: input.color,
+    })
+    .where(eq(categories.id, id))
+    .run();
+}
+
+export function deleteCategory(id: number): void {
+  db.delete(categories).where(eq(categories.id, id)).run();
+}
+
+/** How many blocks/events/monthly routines reference this category. */
+export function countCategoryUsage(id: number): number {
+  const b = db.select({ id: routineBlocks.id }).from(routineBlocks).where(eq(routineBlocks.categoryId, id)).all().length;
+  const e = db.select({ id: events.id }).from(events).where(eq(events.categoryId, id)).all().length;
+  const m = db.select({ id: monthlyRoutines.id }).from(monthlyRoutines).where(eq(monthlyRoutines.categoryId, id)).all().length;
+  return b + e + m;
+}
+
+/** A category is cuttable when it's not protected and has a cut order. */
+export function isCuttable(c: Pick<Category, 'protected' | 'cutOrder'>): boolean {
+  return c.protected !== 1 && c.cutOrder != null;
 }
 
 /** Returns a Set<isoDate> of all holiday dates for use in pure day resolution. */
