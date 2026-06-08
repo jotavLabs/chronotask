@@ -1,8 +1,4 @@
-import {
-  computeDemand,
-  round5,
-  runCascade,
-} from '../adaptationEngine';
+import { computeDemand, runCascade } from '../adaptationEngine';
 import type { EngineBlock, EngineCategory } from '../adaptationEngine';
 
 // Categories mirroring the seed.
@@ -35,13 +31,7 @@ function durOf(blocks: Array<{ id: number; adaptedDuration: number }>, id: numbe
   return blocks.find((b) => b.id === id)!.adaptedDuration;
 }
 
-describe('round5 / computeDemand', () => {
-  it('rounds to multiples of 5', () => {
-    expect(round5(80.36)).toBe(80);
-    expect(round5(44.64)).toBe(45);
-    expect(round5(2.5)).toBe(5);
-  });
-
+describe('computeDemand', () => {
   it('sums events and active monthly routines', () => {
     expect(
       computeDemand(

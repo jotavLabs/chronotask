@@ -101,8 +101,9 @@ describe('reflow — cascade integration with barriers (cases 4–7)', () => {
     expect(d.verdict).toBe('AJUSTADO');
     expect(find(d.timeline, 'routine-2')).toMatchObject({ removed: true }); // local free consumed
     // 30 from free (Lazer→0), 30 from the cascade across the tied level 2 (Treino+Estudo)
-    expect(d.timeline.find((i) => i.refId === 3 && !i.removed)?.adaptedDuration).toBe(75); // Treino 90→75
-    expect(d.timeline.find((i) => i.refId === 5 && !i.removed)?.adaptedDuration).toBe(105); // Estudo 120→105
+    // exact distribution (largest-remainder): cuts 13 + 17 = 30, no round5
+    expect(d.timeline.find((i) => i.refId === 3 && !i.removed)?.adaptedDuration).toBe(77); // Treino 90→77
+    expect(d.timeline.find((i) => i.refId === 5 && !i.removed)?.adaptedDuration).toBe(103); // Estudo 120→103
     expect(checkWindowInvariants(d.timeline)).toEqual([]);
   });
 
