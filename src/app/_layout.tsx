@@ -6,6 +6,8 @@ import { Platform, Text, View } from 'react-native';
 import { db } from '@/db/client';
 import migrations from '@/db/migrations';
 import { runSeed } from '@/db/seed';
+import { seedTraining } from '@/db/seedTraining';
+import { useThemeStore } from '@/store/themeStore';
 
 // ─── web fallback (SharedArrayBuffer not available in standard dev server) ──────
 function WebUnsupported() {
@@ -35,6 +37,8 @@ function MobileApp() {
       seeded.current = true;
       try {
         runSeed();
+        seedTraining();
+        useThemeStore.getState().init();
       } catch (e) {
         console.error('[seed]', e);
       }
@@ -63,6 +67,7 @@ function MobileApp() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="gerenciar" options={{ headerShown: false }} />
+      <Stack.Screen name="ajustes" options={{ headerShown: false }} />
     </Stack>
   );
 }

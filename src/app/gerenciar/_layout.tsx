@@ -1,19 +1,17 @@
 import { Stack } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function GerenciarLayout() {
-  const scheme = useColorScheme();
-  const bg = scheme === 'dark' ? '#111827' : '#FFFFFF';
-  const tint = scheme === 'dark' ? '#F9FAFB' : '#111827';
+  const { tokens } = useTheme();
 
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: bg },
-        headerTintColor: tint,
+        headerStyle: { backgroundColor: tokens.surface },
+        headerTintColor: tokens.text,
         headerTitleStyle: { fontWeight: '600' },
         headerBackTitle: 'Voltar',
-        contentStyle: { backgroundColor: scheme === 'dark' ? '#0B1120' : '#F9FAFB' },
+        contentStyle: { backgroundColor: tokens.background },
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Gerenciar' }} />
