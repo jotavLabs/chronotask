@@ -61,9 +61,55 @@ export const completions = sqliteTable('completions', {
   loggedAt: text('logged_at').notNull(),
 });
 
+// ─── Sprint 4: settings + treino ──────────────────────────────────────────────
+
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});
+
+export const trainingDays = sqliteTable('training_days', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  label: text('label').notNull(), // 'Upper A' | 'Lower A' | 'Upper B' | 'Lower B'
+  weekday: text('weekday').notNull(), // 'Seg' | 'Ter' | 'Qui' | 'Sex'
+});
+
+export const exercises = sqliteTable('exercises', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  trainingDayId: integer('training_day_id')
+    .notNull()
+    .references(() => trainingDays.id),
+  name: text('name').notNull(),
+  pattern: text('pattern'),
+  type: text('type'), // força | isometria | acessório | core | potência
+  sets: text('sets'),
+  reps: text('reps'),
+  rest: text('rest'),
+  ladder: text('ladder'),
+  note: text('note'),
+  sortOrder: integer('sort_order').notNull().default(0),
+});
+
+export const exerciseLogs = sqliteTable('exercise_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  exerciseId: integer('exercise_id')
+    .notNull()
+    .references(() => exercises.id),
+  date: text('date').notNull(),
+  setNumber: integer('set_number').notNull(),
+  reps: integer('reps'),
+  holdSeconds: integer('hold_seconds'),
+  note: text('note'),
+  loggedAt: text('logged_at').notNull(),
+});
+
 export type Category = typeof categories.$inferSelect;
 export type RoutineBlock = typeof routineBlocks.$inferSelect;
 export type MonthlyRoutine = typeof monthlyRoutines.$inferSelect;
 export type Event = typeof events.$inferSelect;
 export type Holiday = typeof holidays.$inferSelect;
 export type Completion = typeof completions.$inferSelect;
+export type Setting = typeof settings.$inferSelect;
+export type TrainingDay = typeof trainingDays.$inferSelect;
+export type Exercise = typeof exercises.$inferSelect;
+export type ExerciseLog = typeof exerciseLogs.$inferSelect;

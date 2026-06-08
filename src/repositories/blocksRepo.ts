@@ -56,6 +56,11 @@ export function getBlockById(id: number): RoutineBlock | undefined {
   return db.select().from(routineBlocks).where(eq(routineBlocks.id, id)).get();
 }
 
+/** Blocks of a given day filtered by category name (e.g. 'Estudo'). */
+export function getBlocksForDayByCategory(dayLabel: string, categoryName: string): BlockWithCategory[] {
+  return getBlocksForDay(dayLabel).filter((b) => b.categoryName === categoryName);
+}
+
 function nextSortOrder(dayLabel: string): number {
   const row = db
     .select({ value: max(routineBlocks.sortOrder) })

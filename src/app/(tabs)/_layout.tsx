@@ -1,18 +1,15 @@
 import { Link, Tabs } from 'expo-router';
-import { Text, TouchableOpacity, useColorScheme } from 'react-native';
+import { Text, TouchableOpacity } from 'react-native';
 import type { ColorValue } from 'react-native';
-
-const ACTIVE = '#3B82F6';
-const INACTIVE_LIGHT = '#9CA3AF';
-const INACTIVE_DARK = '#6B7280';
+import { useTheme } from '@/hooks/useTheme';
 
 function TabIcon({ label }: { label: string; color: ColorValue }) {
   return <Text style={{ fontSize: 18 }}>{label}</Text>;
 }
 
-function ManageButton() {
+function SettingsButton() {
   return (
-    <Link href="/gerenciar" asChild>
+    <Link href="/ajustes" asChild>
       <TouchableOpacity hitSlop={8} style={{ marginRight: 12 }}>
         <Text style={{ fontSize: 20 }}>⚙️</Text>
       </TouchableOpacity>
@@ -21,68 +18,27 @@ function ManageButton() {
 }
 
 export default function TabsLayout() {
-  const scheme = useColorScheme();
-  const inactive = scheme === 'dark' ? INACTIVE_DARK : INACTIVE_LIGHT;
-  const bg = scheme === 'dark' ? '#111827' : '#FFFFFF';
+  const { scheme, tokens } = useTheme();
+  const inactive = scheme === 'dark' ? '#6B7280' : '#9CA3AF';
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: ACTIVE,
+        tabBarActiveTintColor: tokens.primary,
         tabBarInactiveTintColor: inactive,
-        tabBarStyle: {
-          backgroundColor: bg,
-          borderTopColor: scheme === 'dark' ? '#1F2937' : '#E5E7EB',
-        },
-        headerStyle: { backgroundColor: bg },
-        headerTintColor: scheme === 'dark' ? '#F9FAFB' : '#111827',
+        tabBarStyle: { backgroundColor: tokens.surface, borderTopColor: tokens.border },
+        headerStyle: { backgroundColor: tokens.surface },
+        headerTintColor: tokens.text,
         headerTitleStyle: { fontWeight: '600' },
+        headerRight: () => <SettingsButton />,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Hoje',
-          tabBarIcon: (p) => <TabIcon label="☀️" color={p.color} />,
-          headerRight: () => <ManageButton />,
-        }}
-      />
-      <Tabs.Screen
-        name="semana"
-        options={{
-          title: 'Semana',
-          tabBarIcon: (p) => <TabIcon label="📅" color={p.color} />,
-          headerRight: () => <ManageButton />,
-        }}
-      />
-      <Tabs.Screen
-        name="treino"
-        options={{
-          title: 'Treino',
-          tabBarIcon: (p) => <TabIcon label="💪" color={p.color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="estudos"
-        options={{
-          title: 'Estudos',
-          tabBarIcon: (p) => <TabIcon label="📚" color={p.color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="stats"
-        options={{
-          title: 'Stats',
-          tabBarIcon: (p) => <TabIcon label="📊" color={p.color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Chat',
-          tabBarIcon: (p) => <TabIcon label="💬" color={p.color} />,
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Hoje', tabBarIcon: (p) => <TabIcon label="☀️" color={p.color} /> }} />
+      <Tabs.Screen name="semana" options={{ title: 'Semana', tabBarIcon: (p) => <TabIcon label="📅" color={p.color} /> }} />
+      <Tabs.Screen name="treino" options={{ title: 'Treino', tabBarIcon: (p) => <TabIcon label="💪" color={p.color} /> }} />
+      <Tabs.Screen name="estudos" options={{ title: 'Estudos', tabBarIcon: (p) => <TabIcon label="📚" color={p.color} /> }} />
+      <Tabs.Screen name="stats" options={{ title: 'Stats', tabBarIcon: (p) => <TabIcon label="📊" color={p.color} /> }} />
+      <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: (p) => <TabIcon label="💬" color={p.color} /> }} />
     </Tabs>
   );
 }
