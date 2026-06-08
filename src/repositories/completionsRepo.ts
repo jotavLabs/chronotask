@@ -55,6 +55,47 @@ export function setBlockDone(date: string, blockId: number, done: boolean): void
   }
 }
 
+export function getBlockNote(date: string, blockId: number): string | null {
+  const row = db
+    .select({ note: completions.valueNote })
+    .from(completions)
+    .where(
+      and(eq(completions.date, date), eq(completions.refType, 'block'), eq(completions.refId, blockId)),
+    )
+    .get();
+  return row?.note ?? null;
+}
+
+/** Saves a session note in the same completion row (date + block), keeping `done`. */
+export function setBlockNote(date: string, blockId: number, note: string): void {
+  const value = note.trim() || null;
+  const existing = db
+    .select({ id: completions.id })
+    .from(completions)
+    .where(
+      and(eq(completions.date, date), eq(completions.refType, 'block'), eq(completions.refId, blockId)),
+    )
+    .get();
+
+  if (existing) {
+    db.update(completions)
+      .set({ valueNote: value, loggedAt: new Date().toISOString() })
+      .where(eq(completions.id, existing.id))
+      .run();
+  } else {
+    db.insert(completions)
+      .values({
+        date,
+        refType: 'block',
+        refId: blockId,
+        done: 0,
+        valueNote: value,
+        loggedAt: new Date().toISOString(),
+      })
+      .run();
+  }
+}
+
 /** Returns a Set<blockId> of completed block IDs for a given date. */
 export function getDoneBlockIds(date: string): Set<number> {
   const rows = db
