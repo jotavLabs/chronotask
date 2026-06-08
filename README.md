@@ -40,13 +40,16 @@ src/
 ├── app/
 │   ├── _layout.tsx          # Root layout: migration + seed init
 │   ├── (tabs)/
-│   │   ├── _layout.tsx      # Tab navigator (6 abas) + botão Gerenciar no header
-│   │   ├── index.tsx        # Hoje — blocos do dia com checkbox
+│   │   ├── _layout.tsx      # Tab navigator (6 abas) + botão Ajustes no header
+│   │   ├── index.tsx        # Hoje — Dia Adaptado
 │   │   ├── semana.tsx       # Semana — strip de dias + lista
-│   │   ├── treino.tsx       # Placeholder Sprint 4
-│   │   ├── estudos.tsx      # Placeholder Sprint 4
+│   │   ├── treino.tsx       # Treino — Hoje/Semana + log de reps
+│   │   ├── estudos.tsx      # Estudos — temas + anotações
 │   │   ├── stats.tsx        # Placeholder Sprint 5
 │   │   └── chat.tsx         # Placeholder Sprint 5
+│   ├── ajustes/             # Ajustes (Stack): tema + links de config
+│   │   ├── _layout.tsx
+│   │   └── index.tsx
 │   └── gerenciar/           # Edição + config (Stack, fora das abas)
 │       ├── _layout.tsx      # Stack do módulo de edição
 │       ├── index.tsx        # Hub: Blocos / Mensais / Compromissos / Categorias
@@ -70,28 +73,38 @@ src/
 │   ├── CategoryPicker.tsx   # Chips de categorias
 │   ├── DayPicker.tsx        # Chips Seg…Dom + Feriado
 │   ├── PriorityPicker.tsx   # Alta / Média / Baixa
-│   └── ConfirmDialog.tsx    # Modal de confirmação
+│   ├── ConfirmDialog.tsx    # Modal de confirmação
+│   ├── ExerciseLogCard.tsx  # Exercício + registro de séries (reps/hold)
+│   └── StudyNoteCard.tsx    # Bloco de estudo + check + anotação
 ├── db/
-│   ├── schema.ts            # Drizzle schema (6 tabelas)
+│   ├── schema.ts            # Drizzle schema (10 tabelas)
 │   ├── client.ts            # openDatabaseSync + drizzle()
-│   ├── migrations/index.ts  # Migration bundle (formato drizzle-orm/expo-sqlite/migrator)
-│   └── seed.ts              # Seed completo: categorias, blocos, feriados 2026, rotinas mensais
+│   ├── migrations/index.ts  # Migration bundle (m0000 + m0001 Sprint 4)
+│   ├── seed.ts              # Seed: categorias, blocos, feriados 2026, rotinas mensais
+│   └── seedTraining.ts      # Seed: 4 treinos + exercícios (guard próprio)
 ├── lib/                     # Funções puras (sem deps de UI ou SQLite)
 │   ├── dayResolver.ts       # resolveDayLabel, toIsoDate, getWeekDates
 │   ├── holidays.ts          # isHolidayPure, getHolidayNamePure
 │   ├── validation.ts        # tempo (parse/duração/midnight wrap) + validações de form
 │   ├── recurrence.ts        # getMonthlyStatus, isDoneThisMonth, getRoutinesForDate
 │   ├── adaptationEngine.ts  # Motor: cascata, conflitos, reflow, buildAdaptedDay
-│   └── __tests__/           # 60 testes unitários
+│   ├── theme.ts             # Tokens (light/dark) + categoryColorFor + ThemeMode
+│   ├── trainingResolver.ts  # treino do dia (puro, testável)
+│   └── __tests__/           # 73 testes unitários
 ├── repositories/            # Único lugar com SQL
-│   ├── blocksRepo.ts        # CRUD + reorder/move de blocos (+ limpa completions órfãs)
+│   ├── blocksRepo.ts        # CRUD + reorder/move + getBlocksForDayByCategory
 │   ├── monthlyRoutinesRepo.ts # CRUD + scheduleMonthly + markMonthlyDone
 │   ├── eventsRepo.ts        # CRUD + getUpcomingEvents + getEventsByDate
-│   ├── completionsRepo.ts   # getDoneBlockIds, setBlockDone
+│   ├── completionsRepo.ts   # done + notas de sessão (get/setBlockNote)
 │   ├── categoriesRepo.ts    # CRUD de categorias + isCuttable + holidays helpers
-│   └── adaptedDayRepo.ts    # loadAdaptedDay (monta deps e chama o motor)
+│   ├── adaptedDayRepo.ts    # loadAdaptedDay (monta deps e chama o motor)
+│   ├── trainingRepo.ts      # treinos/exercícios + log de séries + última sessão
+│   └── settingsRepo.ts      # get/set settings + theme mode
+├── hooks/
+│   └── useTheme.ts          # scheme efetivo + tokens
 └── store/
-    └── routineStore.ts      # Zustand: days cache + dates done cache + toggleBlock
+    ├── routineStore.ts      # Zustand: days cache + dates done cache + toggleBlock
+    └── themeStore.ts        # modo de tema (init no boot + setMode)
 ```
 
 ---
@@ -120,6 +133,10 @@ monthly_routines — name, window_start/end_day, duration_min, scheduled_date, l
 events          — date, start, end, title, category_id, duration_min, priority
 holidays        — date, name, type (Nacional/Estadual/Municipal/Facultativo)
 completions     — date, ref_type, ref_id, done, value_note, logged_at
+settings        — key, value (ex.: theme_mode)                          [S4]
+training_days   — label (Upper/Lower A/B), weekday (Seg/Ter/Qui/Sex)     [S4]
+exercises       — training_day_id, name, pattern, type, sets, reps, rest, ladder, note, sort_order  [S4]
+exercise_logs   — exercise_id, date, set_number, reps, hold_seconds, note, logged_at  [S4]
 ```
 
 Migrations versionadas via `drizzle-orm/expo-sqlite/migrator` (`useMigrations` hook).
@@ -194,9 +211,19 @@ Exemplos (tempo livre 17:30–18:30): compromisso 17:30–18:00 → folga vira 1
 
 **Limitações**: o reflow é guloso (não busca o ótimo); o tempo livre é fundido por categoria (Lazer/Leitura) como buffer; o caso extremo de demanda maior que toda a janela vira IMPOSSÍVEL (o Sono não cede). As rotinas mensais entram como atividades rígidas perto do `suggested_block`. Compromissos com horário quebrado (ex.: 17:23) mantêm a hora real, e os blocos vizinhos encostam nessa borda.
 
-## Sprint 4 — próxima
+## Sprint 4 — entregue
 
-Abas **Treino** e **Estudos**: detalhamento e acompanhamento dos blocos dessas categorias (sem mexer no motor, que já consome os dados).
+**Tema claro/escuro + Ajustes.** Tokens centralizados em `lib/theme.ts` (light/dark + `categoryColorFor`); três modos **Claro / Escuro / Seguir o sistema**, persistidos na tabela `settings` e aplicados no boot via `colorScheme` do NativeWind (`store/themeStore`). Tela **Ajustes** (rota `app/ajustes`, acessível pelo ⚙️ no header das abas): seletor de tema, links para Gerenciar rotina e Categorias & prioridades (S3), e espaço para Notificações/Backup (S6). As telas das S1–S3 já usavam classes `dark:`; a auditoria trocou os `useColorScheme` do RN por `useTheme` (reflete a escolha manual).
+
+**Aba Treino.** Schema `training_days`/`exercises`/`exercise_logs` + seed dos 4 treinos (Upper/Lower A/B → Seg/Ter/Qui/Sex). `lib/trainingResolver` (puro, testado) resolve o treino do dia. A aba mostra **Hoje** (treino do dia com séries/reps/descanso/tipo, escada de progressão expansível e **registro de reps/hold por série** com "última vez") ou aviso em dia de descanso; **Semana** lista os 4 treinos; seção de **princípios** do roteiro. Logs em `exercise_logs` via `trainingRepo`.
+
+**Aba Estudos.** Lê os blocos de categoria **Estudo** da rotina (Hoje e Semana). **Anotação por sessão** reaproveitando `completions.value_note` (data + bloco), mantendo o check de concluído. Sem tabela nova.
+
+**Navegação:** 6 abas (Hoje · Semana · Treino · Estudos · Stats · Chat); Ajustes é rota empilhada acessível pelo ⚙️ no header.
+
+## Sprint 5 — próxima
+
+Estatísticas (gráficos de adesão, reps por exercício, etc.) e **chat de comandos**. Os dados já são registrados (completions, exercise_logs); a S5 os visualiza.
 
 ## Mapa de sprints
 
