@@ -48,11 +48,6 @@ export type EngineMonthly = {
   categoryName: string | null;
 };
 
-/** Round to the nearest 5 minutes (practicality; may differ slightly from D). */
-export function round5(n: number): number {
-  return Math.round(n / 5) * 5;
-}
-
 /** Extra demand for the date: total minutes of events + scheduled monthly routines. */
 export function computeDemand(events: EngineEvent[], activeMonthly: EngineMonthly[]): number {
   const e = events.reduce((sum, x) => sum + x.durationMin, 0);
@@ -114,9 +109,17 @@ export function runCascade(
 
     const cut = Math.min(remaining, avail);
     const frac = cut / avail;
-    for (const b of levelBlocks) {
-      adjusted.set(b.id, round5(b.durationMin * (1 - frac)));
-    }
+    // Distribute the cut proportionally in WHOLE minutes whose sum is exactly
+    // `cut` (largest-remainder), so no time is created or lost — never round5.
+    const exact = levelBlocks.map((b) => (cut * b.durationMin) / avail);
+    const floors = exact.map((x) => Math.floor(x));
+    let deficit = cut - floors.reduce((s, x) => s + x, 0);
+    const byRemainder = levelBlocks
+      .map((_, i) => i)
+      .sort((a, b) => exact[b] - floors[b] - (exact[a] - floors[a]));
+    const cuts = floors.slice();
+    for (let k = 0; k < deficit; k++) cuts[byRemainder[k]] += 1;
+    levelBlocks.forEach((b, i) => adjusted.set(b.id, b.durationMin - cuts[i]));
 
     cutsByLevel.push({
       cutOrder: order,
@@ -429,21 +432,21 @@ export function reflow(
     }
   }
 
+  // safety net: close any leftover gaps so the window is fully contiguous and
+  // the last activity ends exactly at winEnd (touching Sono)
+  emits.sort((a, b) => a.start - b.start);
+  const windowItems = closeGaps(emits.map((e) => e.item), winStart, winEnd);
+
   // Sono: immovable, anchored to the window end (always winEnd–winStart)
+  const out: TimelineItem[] = [...windowItems];
   if (sleep) {
-    emits.push({
-      start: winEnd,
-      item: {
-        key: `routine-${sleep.id}`, refId: sleep.id, start: sleep.start, end: sleep.end,
-        activity: sleep.activity, category: sleep.categoryName, source: 'routine',
-        adapted: false, originalDuration: sleep.durationMin,
-        adaptedDuration: sleep.durationMin, removed: false,
-      },
+    out.push({
+      key: `routine-${sleep.id}`, refId: sleep.id, start: sleep.start, end: sleep.end,
+      activity: sleep.activity, category: sleep.categoryName, source: 'routine',
+      adapted: false, originalDuration: sleep.durationMin,
+      adaptedDuration: sleep.durationMin, removed: false,
     });
   }
-
-  emits.sort((a, b) => a.start - b.start);
-  const out = emits.map((e) => e.item);
 
   // removed: cut to zero by the cascade, plus any overflow that didn't fit the
   // window (only happens on shortfall — never allowed to cross the barrier)
@@ -469,6 +472,62 @@ export function reflow(
 }
 
 /**
+ * Final pass that removes any gaps inside the window so the timeline is fully
+ * contiguous from winStart to winEnd. Anchors keep their time; a gap is closed by
+ * extending the adjacent free-time block (preferred) or, if none, inserting a
+ * "Tempo livre" filler. Guarantees the last activity ends exactly at winEnd.
+ */
+function closeGaps(items: TimelineItem[], winStart: number, winEnd: number): TimelineItem[] {
+  const isFree = (it: TimelineItem) => it.category != null && FREE_CATEGORIES.has(it.category);
+  const toMin = (s: string) => timeToMinutes(s) ?? 0;
+  let fillerSeq = 0;
+  const filler = (s: number, e: number): TimelineItem => ({
+    key: `free-fill-${fillerSeq++}`, refId: -1,
+    start: minutesToTime(s % DAY_END), end: minutesToTime(e % DAY_END),
+    activity: 'Tempo livre', category: 'Lazer', source: 'routine',
+    adapted: false, originalDuration: e - s, adaptedDuration: e - s, removed: false,
+  });
+  const grow = (it: TimelineItem, by: number): TimelineItem => ({
+    ...it,
+    end: minutesToTime((toMin(it.end) + by) % DAY_END),
+    originalDuration: it.originalDuration + by,
+    adaptedDuration: it.adaptedDuration + by,
+  });
+
+  const result: TimelineItem[] = [];
+  let cursor = winStart;
+  for (const it of items) {
+    const s = toMin(it.start);
+    const e = toMin(it.end);
+    if (s > cursor) {
+      const gap = s - cursor;
+      const prev = result[result.length - 1];
+      if (prev && isFree(prev)) {
+        result[result.length - 1] = grow(prev, gap); // extend free time of origin
+      } else if (isFree(it)) {
+        result.push({
+          ...it, start: minutesToTime(cursor % DAY_END),
+          originalDuration: e - cursor, adaptedDuration: e - cursor,
+        });
+        cursor = e;
+        continue;
+      } else {
+        result.push(filler(cursor, s)); // no flexible neighbour → insert filler
+      }
+    }
+    result.push(it);
+    cursor = Math.max(cursor, e);
+  }
+  // tail gap before winEnd (the sliver before Sono)
+  if (cursor < winEnd) {
+    const prev = result[result.length - 1];
+    if (prev && isFree(prev)) result[result.length - 1] = grow(prev, winEnd - cursor);
+    else result.push(filler(cursor, winEnd));
+  }
+  return result;
+}
+
+/**
  * Validates the window invariants on a timeline. Returns a list of violations
  * (empty when valid). Used by tests; cheap enough to call in dev if needed.
  */
@@ -478,23 +537,29 @@ export function checkWindowInvariants(
   winEnd = DEFAULT_WIN_END,
 ): string[] {
   const errors: string[] = [];
+
+  const sono = timeline.find((it) => it.category === 'Sono' && !it.removed);
+  if (sono && timeToMinutes(sono.start) !== winEnd) {
+    errors.push(`Sono não começa em ${minutesToTime(winEnd)} (${sono.start})`);
+  }
+
+  const windowItems = timeline
+    .filter((it) => !it.removed && it.category !== 'Sono')
+    .map((it) => ({ s: timeToMinutes(it.start) ?? 0, e: timeToMinutes(it.end) ?? 0, activity: it.activity }))
+    .sort((a, b) => a.s - b.s);
+
   let sum = 0;
-  for (const it of timeline) {
-    if (it.removed) continue;
-    if (it.category === 'Sono') {
-      if (timeToMinutes(it.start) !== winEnd) errors.push(`Sono não começa em ${minutesToTime(winEnd)} (${it.start})`);
-      continue;
-    }
-    const s = timeToMinutes(it.start);
-    const e = timeToMinutes(it.end);
-    if (s == null || e == null) continue;
-    if (s < winStart) errors.push(`${it.activity} começa antes de ${minutesToTime(winStart)} (${it.start})`);
-    if (e > winEnd) errors.push(`${it.activity} termina depois de ${minutesToTime(winEnd)} (${it.end})`);
-    sum += e - s;
+  let cursor = winStart;
+  for (const it of windowItems) {
+    if (it.s < winStart) errors.push(`${it.activity} começa antes de ${minutesToTime(winStart)}`);
+    if (it.e > winEnd) errors.push(`${it.activity} termina depois de ${minutesToTime(winEnd)}`);
+    if (it.s > cursor) errors.push(`Gap entre ${minutesToTime(cursor)} e ${minutesToTime(it.s)}`);
+    sum += it.e - it.s;
+    cursor = Math.max(cursor, it.e);
   }
-  if (sum !== winEnd - winStart) {
-    errors.push(`Soma da janela = ${sum}, esperado ${winEnd - winStart}`);
-  }
+  if (cursor < winEnd) errors.push(`Gap entre ${minutesToTime(cursor)} e ${minutesToTime(winEnd)} (antes do Sono)`);
+  if (sum !== winEnd - winStart) errors.push(`Soma da janela = ${sum}, esperado ${winEnd - winStart}`);
+
   return errors;
 }
 
