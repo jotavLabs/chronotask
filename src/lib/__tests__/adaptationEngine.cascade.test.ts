@@ -88,10 +88,15 @@ describe('runCascade', () => {
     expect(durOf(adjusted, 14)).toBe(210); // Trabalho untouched
   });
 
-  it('reports shortfall when demand exceeds all cuttable time', () => {
-    const cuttableTotal = 60 + 45 + 90 + 50 + 480; // 725 (everything but Trabalho)
+  it('reports shortfall when demand exceeds all cuttable time (Sono not cuttable)', () => {
+    const cuttableTotal = 60 + 45 + 90 + 50; // 245 — Trabalho protected, Sono immovable
     const { shortfall } = runCascade(blocks, CATS, cuttableTotal + 100);
     expect(shortfall).toBe(100);
+  });
+
+  it('never cuts Sono', () => {
+    const { adjusted } = runCascade(blocks, CATS, 2000);
+    expect(durOf(adjusted, 15)).toBe(480); // Sono untouched
   });
 
   it('no demand → no cuts', () => {

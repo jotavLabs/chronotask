@@ -91,12 +91,14 @@ export function runCascade(
   const catById = new Map(categories.map((c) => [c.id, c]));
   const catOf = (b: EngineBlock) => (b.categoryId != null ? catById.get(b.categoryId) : undefined);
   const isProtected = (b: EngineBlock) => catOf(b)?.protected === 1;
+  const isSleep = (b: EngineBlock) => catOf(b)?.name === 'Sono';
   const cutOrderOf = (b: EngineBlock) => catOf(b)?.cutOrder ?? null;
 
   const adjusted = new Map<number, number>();
   for (const b of blocks) adjusted.set(b.id, b.durationMin);
 
-  const cuttable = blocks.filter((b) => !isProtected(b) && cutOrderOf(b) != null);
+  // Sono is immovable (outside the 06:00–22:00 window) → never cut to fit events
+  const cuttable = blocks.filter((b) => !isProtected(b) && !isSleep(b) && cutOrderOf(b) != null);
   const orders = Array.from(new Set(cuttable.map((b) => cutOrderOf(b) as number))).sort(
     (a, b) => a - b,
   );
@@ -242,34 +244,39 @@ export type TimelineItem = {
   note?: string;
 };
 
-/** Free-time category treated as a divisible buffer, split around fixed anchors. */
-const SPLITTABLE_CATEGORY = 'Lazer';
-const MIN_SPLIT = 15; // never create a fragment smaller than this (minutes)
+/** Categories treated as elastic free-time buffers (shrink, split, reposition). */
+const FREE_CATEGORIES = new Set(['Lazer', 'Leitura']);
+const DAY_END = 1440;
+const DEFAULT_WIN_START = 360; // 06:00
+const DEFAULT_WIN_END = 1320; // 22:00
 
-type Float = {
+type QueueItem = {
   baseKey: string;
   refId: number;
   source: TimelineSource;
   activity: string;
   category: string | null;
   originalDuration: number;
-  duration: number;
+  duration: number; // rigid: fixed; free: remaining (consumable)
   origStart: number;
-  splittable: boolean;
-  fragment?: boolean;
+  free: boolean;
   note?: string;
 };
 
 /**
- * Greedy, deterministic reflow (not optimal — small manual tweaks acceptable).
- * Works in a linear timeline [dayStart, dayStart+1440] so Sono (crossing
- * midnight) is the terminal block.
+ * Clock-based reflow with hard barriers and elastic free time.
  *
- * Fixed anchors (protected blocks, events, Sono) keep their clock time and split
- * the day into free slots. Each floating block is assigned to the slot of its
- * ORIGINAL time, so morning blocks stay in the morning and evening blocks in the
- * evening — only what overlaps an anchor is pushed to the next slot, instead of
- * re-stacking the whole day from dawn (which previously cascaded into the night).
+ * Invariants (guaranteed by construction; see checkWindowInvariants):
+ *  - Activity window [winStart, winEnd] (from Sono; default 06:00–22:00). No
+ *    activity block crosses 06:00 or 22:00.
+ *  - Sono is immovable: exactly winEnd–06:00.
+ *  - Time conservation: the window stays full — fitting a C-min event frees C
+ *    minutes elsewhere (via the cascade), never stretching past 22:00.
+ *
+ * Fixed anchors (Trabalho, events) keep their clock time and split the window
+ * into segments. Rigid activities are re-placed in order into the segments; free
+ * time (Lazer/Leitura) is an elastic buffer that shrinks, splits and repositions
+ * around the anchors instead of pushing the day forward.
  */
 export function reflow(
   adjusted: AdaptedBlock[],
@@ -282,25 +289,20 @@ export function reflow(
   const isProtected = (b: AdaptedBlock) => catOf(b)?.protected === 1;
   const isSleep = (b: AdaptedBlock) => catOf(b)?.name === 'Sono';
 
-  const nonSleep = adjusted.filter((b) => !isSleep(b));
-  const dayStart =
-    nonSleep.length > 0 ? Math.min(...nonSleep.map((b) => timeToMinutes(b.start) ?? 0)) : 360;
-  const toLinear = (min: number) => (min >= dayStart ? min : min + 1440);
-
-  // sleep terminal: end fixed (original), start anchored to it (later if shortened)
+  // window derived from the Sono block: [sonoEnd, sonoStart] (e.g. 06:00–22:00)
   const sleep = adjusted.find(isSleep);
-  const sleepEndLin = sleep ? toLinear(timeToMinutes(sleep.start) ?? 1320) + sleep.durationMin : 0;
-  const sleepAnchoredStart = sleep ? sleepEndLin - sleep.adaptedDuration : Number.POSITIVE_INFINITY;
-  const dayLimit = sleep ? sleepAnchoredStart : dayStart + 1440;
+  const winStart = sleep ? timeToMinutes(sleep.end) ?? DEFAULT_WIN_START : DEFAULT_WIN_START;
+  const winEnd = sleep ? timeToMinutes(sleep.start) ?? DEFAULT_WIN_END : DEFAULT_WIN_END;
+  const clampWin = (m: number) => Math.max(winStart, Math.min(winEnd, m));
 
-  // fixed anchors (protected blocks + events)
-  type Fixed = { startLin: number; endLin: number; item: TimelineItem };
+  // fixed anchors (protected blocks + events), clamped to the window
+  type Fixed = { start: number; end: number; item: TimelineItem };
   const fixed: Fixed[] = [];
   for (const b of adjusted.filter(isProtected)) {
-    const startLin = toLinear(timeToMinutes(b.start) ?? 0);
+    const s = clampWin(timeToMinutes(b.start) ?? winStart);
     fixed.push({
-      startLin,
-      endLin: startLin + b.adaptedDuration,
+      start: s,
+      end: clampWin(s + b.adaptedDuration),
       item: {
         key: `routine-${b.id}`, refId: b.id, start: b.start, end: b.end, activity: b.activity,
         category: b.categoryName, source: 'routine', adapted: false,
@@ -309,10 +311,10 @@ export function reflow(
     });
   }
   for (const ev of events) {
-    const startLin = toLinear(timeToMinutes(ev.start) ?? 0);
+    const s = clampWin(timeToMinutes(ev.start) ?? winStart);
     fixed.push({
-      startLin,
-      endLin: startLin + ev.durationMin,
+      start: s,
+      end: clampWin(timeToMinutes(ev.end) ?? s + ev.durationMin),
       item: {
         key: `event-${ev.id}`, refId: ev.id, start: ev.start, end: ev.end, activity: ev.title,
         category: ev.categoryName, source: 'event', adapted: false,
@@ -320,143 +322,131 @@ export function reflow(
       },
     });
   }
-  fixed.sort((a, b) => a.startLin - b.startLin);
+  fixed.sort((a, b) => a.start - b.start);
 
-  // free slots between anchors, within [dayStart, dayLimit]
-  const slots: Array<{ start: number; end: number }> = [];
-  let prev = dayStart;
+  // free segments between anchors within the window
+  const segments: Array<{ start: number; end: number }> = [];
+  let prev = winStart;
   for (const a of fixed) {
-    if (a.startLin > prev) slots.push({ start: prev, end: a.startLin });
-    prev = Math.max(prev, a.endLin);
+    if (a.start > prev) segments.push({ start: prev, end: a.start });
+    prev = Math.max(prev, a.end);
   }
-  if (prev < dayLimit) slots.push({ start: prev, end: dayLimit });
-  if (slots.length === 0) slots.push({ start: prev, end: prev + 1 });
+  if (prev < winEnd) segments.push({ start: prev, end: winEnd });
 
-  // floating blocks (duration > 0) with their original linear start
-  const floats: Float[] = adjusted
+  // queue of non-anchor blocks (rigid + free), in original order
+  const queue: QueueItem[] = adjusted
     .filter((b) => !isProtected(b) && !isSleep(b) && b.adaptedDuration > 0)
     .map((b) => ({
       baseKey: `routine-${b.id}`, refId: b.id, source: 'routine' as const,
       activity: b.activity, category: b.categoryName,
       originalDuration: b.durationMin, duration: b.adaptedDuration,
-      origStart: toLinear(timeToMinutes(b.start) ?? dayStart),
-      splittable: b.categoryName === SPLITTABLE_CATEGORY,
+      origStart: timeToMinutes(b.start) ?? winStart,
+      free: b.categoryName != null && FREE_CATEGORIES.has(b.categoryName),
     }));
 
-  // active monthly routines: synthetic position near suggestedBlock (else afternoon)
+  // active monthly routines as rigid items near suggestedBlock (else afternoon)
   for (const m of activeMonthly) {
-    const ref = m.suggestedBlock ? floats.find((f) => f.category === m.suggestedBlock) : undefined;
-    floats.push({
+    const ref = m.suggestedBlock ? queue.find((q) => q.category === m.suggestedBlock) : undefined;
+    queue.push({
       baseKey: `monthly-${m.id}`, refId: m.id, source: 'monthly',
       activity: m.name, category: m.categoryName,
-      originalDuration: m.durationMin, duration: m.durationMin, note: 'Rotina mensal',
-      origStart: ref ? ref.origStart + 1 : 13 * 60, splittable: false,
+      originalDuration: m.durationMin, duration: m.durationMin,
+      origStart: ref ? ref.origStart + 1 : 13 * 60, free: false, note: 'Rotina mensal',
     });
   }
-  floats.sort((a, b) => a.origStart - b.origStart);
+  queue.sort((a, b) => a.origStart - b.origStart);
 
-  // assign each float to the slot containing its original time (or the next slot)
-  const bySlot: Float[][] = slots.map(() => []);
-  for (const f of floats) {
-    let idx = slots.findIndex((s) => f.origStart >= s.start && f.origStart < s.end);
-    if (idx === -1) idx = slots.findIndex((s) => s.start >= f.origStart);
-    if (idx === -1) idx = slots.length - 1;
-    bySlot[idx].push(f);
-  }
+  // emit helpers
+  const emits: Array<{ start: number; item: TimelineItem }> = [];
+  for (const a of fixed) emits.push({ start: a.start, item: a.item });
 
-  // emit anchors + floats (slot packing with split + overflow carry), then sort
-  const emits: Array<{ startLin: number; item: TimelineItem }> = [];
-  for (const a of fixed) emits.push({ startLin: a.startLin, item: a.item });
-
-  // unique render keys (a split block shares its refId but needs distinct keys)
   const fragCount = new Map<string, number>();
   const keyFor = (baseKey: string) => {
     const n = (fragCount.get(baseKey) ?? 0) + 1;
     fragCount.set(baseKey, n);
     return n === 1 ? baseKey : `${baseKey}#${n}`;
   };
-
-  const emit = (f: Float, at: number, pieceDur: number) => {
-    const whole = pieceDur === f.duration && !f.fragment;
+  const emit = (q: QueueItem, at: number, pieceDur: number) => {
+    const whole = !q.free; // free time shows only the placed piece (no Δ)
     emits.push({
-      startLin: at,
+      start: at,
       item: {
-        key: keyFor(f.baseKey),
-        refId: f.refId,
-        start: minutesToTime(at % 1440),
-        end: minutesToTime((at + pieceDur) % 1440),
-        activity: f.activity,
-        category: f.category,
-        source: f.source,
-        adapted: whole ? f.duration !== f.originalDuration : false,
-        originalDuration: whole ? f.originalDuration : pieceDur,
-        adaptedDuration: whole ? f.duration : pieceDur,
-        removed: false,
-        note: f.note,
+        key: keyFor(q.baseKey), refId: q.refId,
+        start: minutesToTime(at % DAY_END), end: minutesToTime((at + pieceDur) % DAY_END),
+        activity: q.activity, category: q.category, source: q.source,
+        adapted: whole ? q.duration !== q.originalDuration : false,
+        originalDuration: whole ? q.originalDuration : pieceDur,
+        adaptedDuration: whole ? q.duration : pieceDur,
+        removed: false, note: q.note,
       },
     });
   };
 
-  let carry: Float[] = [];
-  let tail = dayStart;
-  for (let i = 0; i < slots.length; i++) {
-    const slot = slots[i];
-    const queue = [...carry, ...bySlot[i]];
-    carry = [];
-    let cursor = slot.start;
-    for (const f of queue) {
-      const available = slot.end - cursor;
-      if (available <= 0) {
-        carry.push(f);
+  // pull free time from later in the queue to fill a gap a rigid can't cover
+  const fillGap = (fromIdx: number, cursor: number, gap: number): number => {
+    let c = cursor;
+    let remaining = gap;
+    for (let j = fromIdx; j < queue.length && remaining > 0; j++) {
+      const q = queue[j];
+      if (!q.free || q.duration <= 0) continue;
+      const take = Math.min(q.duration, remaining);
+      emit(q, c, take);
+      c += take;
+      q.duration -= take;
+      remaining -= take;
+    }
+    return c;
+  };
+
+  // pack each segment from the ordered queue; free time is divisible/elastic
+  let qi = 0;
+  for (const seg of segments) {
+    let cursor = seg.start;
+    while (qi < queue.length && cursor < seg.end) {
+      const q = queue[qi];
+      if (q.duration <= 0) {
+        qi++;
         continue;
       }
-      if (f.duration <= available) {
-        // fits whole: keep near its original time when there's room
-        const desired = Math.max(cursor, Math.min(f.origStart, slot.end - f.duration));
-        emit(f, desired, f.duration);
-        cursor = desired + f.duration;
-      } else if (f.splittable && available >= MIN_SPLIT) {
-        // free-time buffer: place the part that fits, carry the rest past the anchor
-        emit(f, cursor, available);
-        carry.push({ ...f, duration: f.duration - available, origStart: slot.end, fragment: true });
-        cursor = slot.end;
+      const space = seg.end - cursor;
+      if (q.free) {
+        const take = Math.min(q.duration, space);
+        emit(q, cursor, take);
+        cursor += take;
+        q.duration -= take;
+        if (q.duration <= 0) qi++;
+        else break; // segment full
+      } else if (q.duration <= space) {
+        emit(q, cursor, q.duration);
+        cursor += q.duration;
+        qi++;
       } else {
-        carry.push(f);
+        // rigid doesn't fit: fill the leftover with free time pulled from ahead,
+        // then move the rigid to the next segment
+        cursor = fillGap(qi + 1, cursor, space);
+        break;
       }
     }
-    tail = slot.end;
-  }
-  // leftovers that didn't fit any slot go after the last slot (may push sleep)
-  let cursor = tail;
-  for (const f of carry) {
-    emit(f, cursor, f.duration);
-    cursor += f.duration;
   }
 
+  // Sono: immovable, anchored to the window end (always winEnd–winStart)
   if (sleep) {
-    const start = Math.max(sleepAnchoredStart, cursor);
     emits.push({
-      startLin: start,
+      start: winEnd,
       item: {
-        key: `routine-${sleep.id}`,
-        refId: sleep.id,
-        start: minutesToTime(start % 1440),
-        end: minutesToTime(sleepEndLin % 1440),
-        activity: sleep.activity,
-        category: sleep.categoryName,
-        source: 'routine',
-        adapted: sleep.adaptedDuration !== sleep.durationMin,
-        originalDuration: sleep.durationMin,
-        adaptedDuration: sleep.adaptedDuration,
-        removed: false,
+        key: `routine-${sleep.id}`, refId: sleep.id, start: sleep.start, end: sleep.end,
+        activity: sleep.activity, category: sleep.categoryName, source: 'routine',
+        adapted: false, originalDuration: sleep.durationMin,
+        adaptedDuration: sleep.durationMin, removed: false,
       },
     });
   }
 
-  emits.sort((a, b) => a.startLin - b.startLin);
+  emits.sort((a, b) => a.start - b.start);
   const out = emits.map((e) => e.item);
 
-  // removed blocks (cut to zero) surfaced at the end
+  // removed: cut to zero by the cascade, plus any overflow that didn't fit the
+  // window (only happens on shortfall — never allowed to cross the barrier)
   const removed: TimelineItem[] = adjusted
     .filter((b) => !isProtected(b) && !isSleep(b) && b.adaptedDuration <= 0)
     .map((b) => ({
@@ -464,8 +454,48 @@ export function reflow(
       category: b.categoryName, source: 'routine' as const, adapted: true,
       originalDuration: b.durationMin, adaptedDuration: 0, removed: true,
     }));
+  for (; qi < queue.length; qi++) {
+    const q = queue[qi];
+    if (q.duration <= 0 || q.free) continue;
+    removed.push({
+      key: keyFor(q.baseKey), refId: q.refId, start: minutesToTime(q.origStart % DAY_END),
+      end: minutesToTime((q.origStart + q.duration) % DAY_END), activity: q.activity,
+      category: q.category, source: q.source, adapted: true,
+      originalDuration: q.originalDuration, adaptedDuration: 0, removed: true,
+    });
+  }
 
   return [...out, ...removed];
+}
+
+/**
+ * Validates the window invariants on a timeline. Returns a list of violations
+ * (empty when valid). Used by tests; cheap enough to call in dev if needed.
+ */
+export function checkWindowInvariants(
+  timeline: TimelineItem[],
+  winStart = DEFAULT_WIN_START,
+  winEnd = DEFAULT_WIN_END,
+): string[] {
+  const errors: string[] = [];
+  let sum = 0;
+  for (const it of timeline) {
+    if (it.removed) continue;
+    if (it.category === 'Sono') {
+      if (timeToMinutes(it.start) !== winEnd) errors.push(`Sono não começa em ${minutesToTime(winEnd)} (${it.start})`);
+      continue;
+    }
+    const s = timeToMinutes(it.start);
+    const e = timeToMinutes(it.end);
+    if (s == null || e == null) continue;
+    if (s < winStart) errors.push(`${it.activity} começa antes de ${minutesToTime(winStart)} (${it.start})`);
+    if (e > winEnd) errors.push(`${it.activity} termina depois de ${minutesToTime(winEnd)} (${it.end})`);
+    sum += e - s;
+  }
+  if (sum !== winEnd - winStart) {
+    errors.push(`Soma da janela = ${sum}, esperado ${winEnd - winStart}`);
+  }
+  return errors;
 }
 
 // ─── orchestration ────────────────────────────────────────────────────────────
