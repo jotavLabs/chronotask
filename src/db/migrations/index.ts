@@ -6,9 +6,51 @@ const migrations = {
   journal: {
     entries: [
       { idx: 0, when: 0, tag: '0000_initial', breakpoints: true },
+      { idx: 1, when: 1, tag: '0001_sprint4', breakpoints: true },
     ],
   },
   migrations: {
+    m0001: `
+CREATE TABLE IF NOT EXISTS \`settings\` (
+  \`key\` text PRIMARY KEY NOT NULL,
+  \`value\` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS \`training_days\` (
+  \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  \`label\` text NOT NULL,
+  \`weekday\` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS \`exercises\` (
+  \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  \`training_day_id\` integer NOT NULL REFERENCES \`training_days\`(\`id\`),
+  \`name\` text NOT NULL,
+  \`pattern\` text,
+  \`type\` text,
+  \`sets\` text,
+  \`reps\` text,
+  \`rest\` text,
+  \`ladder\` text,
+  \`note\` text,
+  \`sort_order\` integer NOT NULL DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS \`exercise_logs\` (
+  \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  \`exercise_id\` integer NOT NULL REFERENCES \`exercises\`(\`id\`),
+  \`date\` text NOT NULL,
+  \`set_number\` integer NOT NULL,
+  \`reps\` integer,
+  \`hold_seconds\` integer,
+  \`note\` text,
+  \`logged_at\` text NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS \`exercises_day_idx\` ON \`exercises\` (\`training_day_id\`);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS \`exercise_logs_idx\` ON \`exercise_logs\` (\`exercise_id\`, \`date\`);
+    `,
     m0000: `
 CREATE TABLE IF NOT EXISTS \`categories\` (
   \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
