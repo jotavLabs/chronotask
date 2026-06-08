@@ -190,7 +190,9 @@ Exemplos (tempo livre 17:30–18:30): compromisso 17:30–18:00 → folga vira 1
 
 **Passe de fechamento de gaps** (`closeGaps`, rede de segurança): após o reflow, varre a janela 06:00→22:00 e elimina qualquer buraco residual — preferindo **estender o tempo livre adjacente** (de onde o tempo saiu) e, na falta de vizinho flexível, inserindo um bloco **"Tempo livre"**. Garante que a última atividade termine exatamente às 22:00, encostando no Sono, sem nenhum *sliver* vazio.
 
-**Limitações**: o reflow é guloso (não busca o ótimo); o tempo livre é fundido por categoria (Lazer/Leitura) como buffer; o caso extremo de demanda maior que toda a janela vira IMPOSSÍVEL (o Sono não cede). As rotinas mensais entram como atividades rígidas perto do `suggested_block`.
+**Arredondamento para 5 min** (`snapTo5`, estética): passe final que arredonda toda borda interna da timeline para marcas de 5 minutos (ex.: `jantar 17:57–18:42` → `18:00–18:45`). As **âncoras** (eventos/Trabalho) e os limites `06:00`/`22:00` ficam no horário real — então a janela continua **contígua** e **conservada** (as bordas apenas deslizam, a soma se mantém). Atividades intactas preservam a duração; só o bloco onde o corte caiu absorve o ajuste. A matemática do agendamento permanece exata — o arredondamento é apenas de horário.
+
+**Limitações**: o reflow é guloso (não busca o ótimo); o tempo livre é fundido por categoria (Lazer/Leitura) como buffer; o caso extremo de demanda maior que toda a janela vira IMPOSSÍVEL (o Sono não cede). As rotinas mensais entram como atividades rígidas perto do `suggested_block`. Compromissos com horário quebrado (ex.: 17:23) mantêm a hora real, e os blocos vizinhos encostam nessa borda.
 
 ## Sprint 4 — próxima
 
