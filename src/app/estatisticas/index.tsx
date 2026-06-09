@@ -3,7 +3,7 @@ import { ptBR } from 'date-fns/locale';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { BarChart } from 'react-native-gifted-charts';
+import { BarChartSimple } from '@/components/BarChartSimple';
 import { categoryColorFor } from '@/lib/theme';
 import {
   consistency,
@@ -47,7 +47,7 @@ function SectionTitle({ children }: { children: string }) {
 }
 
 export default function EstatisticasScreen() {
-  const { scheme, tokens } = useTheme();
+  const { scheme } = useTheme();
   const [ref, setRef] = useState(() => new Date());
   const [data, setData] = useState<Data | null>(null);
 
@@ -79,7 +79,7 @@ export default function EstatisticasScreen() {
     data?.topics.map((t) => ({
       value: Math.round((t.minutes / 60) * 10) / 10,
       label: t.topic.split('/')[0].slice(0, 6),
-      frontColor: categoryColorFor(TOPIC_HEX[t.topic] ?? '#10B981', scheme),
+      color: categoryColorFor(TOPIC_HEX[t.topic] ?? '#10B981', scheme),
     })) ?? [];
 
   return (
@@ -102,21 +102,9 @@ export default function EstatisticasScreen() {
       {chartData.length === 0 ? (
         <Text className="px-4 text-sm text-gray-400">Nenhum estudo concluído neste mês.</Text>
       ) : (
-        <View className="px-4">
-          <BarChart
-            data={chartData}
-            height={160}
-            barWidth={26}
-            spacing={18}
-            initialSpacing={10}
-            noOfSections={4}
-            yAxisThickness={0}
-            xAxisThickness={0}
-            yAxisTextStyle={{ color: tokens.textMuted, fontSize: 10 }}
-            xAxisLabelTextStyle={{ color: tokens.textMuted, fontSize: 10 }}
-            isAnimated
-          />
-          <Text className="text-[11px] text-gray-400 mt-1">valores em horas (tempo planejado)</Text>
+        <View className="px-4 bg-white dark:bg-gray-800 rounded-xl mx-4 py-3">
+          <BarChartSimple data={chartData} height={170} unit="h" />
+          <Text className="text-[11px] text-gray-400 mt-2 text-center">horas (tempo planejado)</Text>
         </View>
       )}
 
