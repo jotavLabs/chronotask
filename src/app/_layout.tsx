@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { db } from '@/db/client';
+import { backfillTopics } from '@/db/backfillTopics';
 import migrations from '@/db/migrations';
 import { runSeed } from '@/db/seed';
 import { seedTraining } from '@/db/seedTraining';
@@ -38,6 +39,7 @@ function MobileApp() {
       try {
         runSeed();
         seedTraining();
+        backfillTopics();
         useThemeStore.getState().init();
       } catch (e) {
         console.error('[seed]', e);
@@ -68,6 +70,8 @@ function MobileApp() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="gerenciar" options={{ headerShown: false }} />
       <Stack.Screen name="ajustes" options={{ headerShown: false }} />
+      <Stack.Screen name="estatisticas" options={{ headerShown: false }} />
+      <Stack.Screen name="chat" options={{ headerShown: false }} />
     </Stack>
   );
 }

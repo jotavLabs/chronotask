@@ -7,9 +7,13 @@ const migrations = {
     entries: [
       { idx: 0, when: 0, tag: '0000_initial', breakpoints: true },
       { idx: 1, when: 1, tag: '0001_sprint4', breakpoints: true },
+      { idx: 2, when: 2, tag: '0002_topic', breakpoints: true },
     ],
   },
   migrations: {
+    m0002: `
+ALTER TABLE \`routine_blocks\` ADD COLUMN \`topic\` text;
+    `,
     m0001: `
 CREATE TABLE IF NOT EXISTS \`settings\` (
   \`key\` text PRIMARY KEY NOT NULL,
