@@ -45,11 +45,10 @@ src/
 │   │   ├── semana.tsx       # Semana — strip de dias + lista
 │   │   ├── treino.tsx       # Treino — Hoje/Semana + log de reps
 │   │   ├── estudos.tsx      # Estudos — temas + anotações
-│   │   ├── stats.tsx        # Placeholder Sprint 5
-│   │   └── chat.tsx         # Placeholder Sprint 5
+│   │   └── mais.tsx         # Hub: Estatísticas / Chat / Gerenciar / Ajustes
 │   ├── ajustes/             # Ajustes (Stack): tema + links de config
-│   │   ├── _layout.tsx
-│   │   └── index.tsx
+│   ├── estatisticas/        # Estatísticas (Stack): gráficos + consistência
+│   ├── chat/                # Chat de comandos (Stack)
 │   └── gerenciar/           # Edição + config (Stack, fora das abas)
 │       ├── _layout.tsx      # Stack do módulo de edição
 │       ├── index.tsx        # Hub: Blocos / Mensais / Compromissos / Categorias
@@ -90,7 +89,10 @@ src/
 │   ├── adaptationEngine.ts  # Motor: cascata, conflitos, reflow, buildAdaptedDay
 │   ├── theme.ts             # Tokens (light/dark) + categoryColorFor + ThemeMode
 │   ├── trainingResolver.ts  # treino do dia (puro, testável)
-│   └── __tests__/           # 73 testes unitários
+│   ├── topics.ts            # topicFor — normaliza estudos por tema
+│   ├── stats.ts             # agregações (tempo/tema, consistência, volume)
+│   ├── commands.ts          # parseCommand — parser do chat (deps injetados)
+│   └── __tests__/           # 94 testes unitários
 ├── repositories/            # Único lugar com SQL
 │   ├── blocksRepo.ts        # CRUD + reorder/move + getBlocksForDayByCategory
 │   ├── monthlyRoutinesRepo.ts # CRUD + scheduleMonthly + markMonthlyDone
@@ -99,7 +101,9 @@ src/
 │   ├── categoriesRepo.ts    # CRUD de categorias + isCuttable + holidays helpers
 │   ├── adaptedDayRepo.ts    # loadAdaptedDay (monta deps e chama o motor)
 │   ├── trainingRepo.ts      # treinos/exercícios + log de séries + última sessão
-│   └── settingsRepo.ts      # get/set settings + theme mode
+│   ├── settingsRepo.ts      # get/set settings + theme mode
+│   ├── statsRepo.ts         # completed/scheduled/reps para as agregações
+│   └── commandDeps.ts       # monta os dados do chat via repos/motor
 ├── hooks/
 │   └── useTheme.ts          # scheme efetivo + tokens
 └── store/
@@ -128,7 +132,7 @@ src/
 
 ```
 categories      — nome, cut_order, tie_group, protected, color
-routine_blocks  — day_label, start, end, duration_min, activity, category_id, note, sort_order
+routine_blocks  — day_label, start, end, duration_min, activity, category_id, note, sort_order, topic [S5]
 monthly_routines — name, window_start/end_day, duration_min, scheduled_date, last_done
 events          — date, start, end, title, category_id, duration_min, priority
 holidays        — date, name, type (Nacional/Estadual/Municipal/Facultativo)
@@ -221,9 +225,17 @@ Exemplos (tempo livre 17:30–18:30): compromisso 17:30–18:00 → folga vira 1
 
 **Navegação:** 6 abas (Hoje · Semana · Treino · Estudos · Stats · Chat); Ajustes é rota empilhada acessível pelo ⚙️ no header.
 
-## Sprint 5 — próxima
+## Sprint 5 — entregue
 
-Estatísticas (gráficos de adesão, reps por exercício, etc.) e **chat de comandos**. Os dados já são registrados (completions, exercise_logs); a S5 os visualiza.
+**Estatísticas.** Campo `routine_blocks.topic` agrupa os estudos por tema (`lib/topics.topicFor`, normalização pura; seed + backfill idempotente). `lib/stats` (puro, testado): `timeByTopic`/`timeByCategory` (sessões concluídas × duração planejada), `consistency` (feito/agendado), `trainingVolume`. Tela com seletor de mês, **gráfico de barras** de horas por tema (`react-native-gifted-charts`), cards por categoria (Treino/Cardio/Mobilidade/Leitura), consistência e volume de treino. Métrica documentada como **tempo planejado** (não o ajustado pela adaptação).
+
+**Chat de comandos.** `lib/commands.parseCommand` — parser local **determinístico** (sem IA), puro e testado, com deps injetados. Comandos: `/hoje`, `/semana`, `/treino`, `/estudos`, `/mensais`, `/proximo`, `/feriados`, `/feriados-<mês>` (PT, com/sem acento), `/tempo <tema>`, `/ajuda`; desconhecido → dica de `/ajuda`. Tela de chat com bolhas e sugestões. Ponto de extensão aberto para encaminhar texto livre a um modelo no futuro.
+
+**Navegação:** 5 abas (Hoje · Semana · Treino · Estudos · **Mais**). A aba **Mais** reúne Estatísticas, Chat, Gerenciar e Ajustes (rotas empilhadas) — evita tab bar lotada. O ⚙️ no header continua como atalho para Ajustes.
+
+## Sprint 6 — próxima
+
+Lembretes (**notificações locais**) por bloco/compromisso e **backup/exportação** (JSON). Espaços já reservados na tela de Ajustes.
 
 ## Mapa de sprints
 
