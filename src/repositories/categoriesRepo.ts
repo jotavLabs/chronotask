@@ -77,3 +77,12 @@ export function buildHolidayMap(): Map<string, string> {
   const rows = db.select({ date: holidays.date, name: holidays.name }).from(holidays).all();
   return new Map(rows.map((r) => [r.date, r.name]));
 }
+
+/** All holidays as { date, name }, sorted by date. */
+export function getHolidaysList(): { date: string; name: string }[] {
+  return db
+    .select({ date: holidays.date, name: holidays.name })
+    .from(holidays)
+    .orderBy(holidays.date)
+    .all();
+}
