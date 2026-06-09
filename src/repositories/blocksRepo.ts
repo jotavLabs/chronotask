@@ -14,6 +14,7 @@ export type BlockWithCategory = {
   categoryId: number | null;
   note: string | null;
   sortOrder: number;
+  topic: string | null;
   categoryName: string | null;
   categoryColor: string | null;
 };
@@ -40,6 +41,7 @@ export function getBlocksForDay(dayLabel: string): BlockWithCategory[] {
       categoryId: routineBlocks.categoryId,
       note: routineBlocks.note,
       sortOrder: routineBlocks.sortOrder,
+      topic: routineBlocks.topic,
       categoryName: categories.name,
       categoryColor: categories.color,
     })

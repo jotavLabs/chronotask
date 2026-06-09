@@ -19,6 +19,7 @@ export const routineBlocks = sqliteTable('routine_blocks', {
   categoryId: integer('category_id').references(() => categories.id),
   note: text('note'),
   sortOrder: integer('sort_order').notNull().default(0),
+  topic: text('topic'), // normalized study topic (S5), nullable
 });
 
 export const monthlyRoutines = sqliteTable('monthly_routines', {

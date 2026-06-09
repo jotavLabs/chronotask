@@ -37,8 +37,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="semana" options={{ title: 'Semana', tabBarIcon: (p) => <TabIcon label="📅" color={p.color} /> }} />
       <Tabs.Screen name="treino" options={{ title: 'Treino', tabBarIcon: (p) => <TabIcon label="💪" color={p.color} /> }} />
       <Tabs.Screen name="estudos" options={{ title: 'Estudos', tabBarIcon: (p) => <TabIcon label="📚" color={p.color} /> }} />
-      <Tabs.Screen name="stats" options={{ title: 'Stats', tabBarIcon: (p) => <TabIcon label="📊" color={p.color} /> }} />
-      <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: (p) => <TabIcon label="💬" color={p.color} /> }} />
+      <Tabs.Screen name="mais" options={{ title: 'Mais', tabBarIcon: (p) => <TabIcon label="⋯" color={p.color} /> }} />
     </Tabs>
   );
 }

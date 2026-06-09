@@ -1,3 +1,4 @@
+import { topicFor } from '@/lib/topics';
 import { db } from './client';
 import {
   categories,
@@ -196,6 +197,7 @@ export function runSeed(): void {
     categoryId: catMap.get(b.catName) ?? null,
     note: b.note ?? null,
     sortOrder: b.sortOrder,
+    topic: b.catName === 'Estudo' ? topicFor(b.activity, b.note) : null,
   }));
 
   // Insert in batches of 50 to avoid parameter limits
