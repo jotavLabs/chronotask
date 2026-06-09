@@ -4,7 +4,8 @@ import { Alert, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } fr
 import type { Href } from 'expo-router';
 import type { NotifPrefs, NotifScope } from '@/lib/notifications';
 import { THEME_MODES } from '@/lib/theme';
-import { getNotifPrefs, setNotifPrefs } from '@/repositories/settingsRepo';
+import { getLastBackupAt, getNotifPrefs, setNotifPrefs } from '@/repositories/settingsRepo';
+import { applyBackup, exportBackup, pickBackup } from '@/services/backupService';
 import { requestNotifPermission, rescheduleNotifications } from '@/services/notificationService';
 import { useThemeStore } from '@/store/themeStore';
 
@@ -89,12 +90,47 @@ export default function AjustesScreen() {
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
   const [notif, setNotif] = useState<NotifPrefs>(() => getNotifPrefs());
+  const [lastBackup, setLastBackup] = useState<string | null>(() => getLastBackupAt());
 
   function update(patch: Partial<NotifPrefs>) {
     const next = { ...notif, ...patch };
     setNotif(next);
     setNotifPrefs(next);
     void rescheduleNotifications();
+  }
+
+  async function onExport() {
+    const r = await exportBackup();
+    if (r.ok) setLastBackup(getLastBackupAt());
+    else Alert.alert('Erro', r.error ?? 'Falha ao exportar.');
+  }
+
+  async function onImport() {
+    const r = await pickBackup();
+    if (r.canceled) return;
+    if (!r.ok) {
+      Alert.alert('Arquivo inválido', r.error);
+      return;
+    }
+    Alert.alert('Importar backup?', 'Isso substitui TODOS os dados atuais. Esta ação não pode ser desfeita.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Importar',
+        style: 'destructive',
+        onPress: () => {
+          try {
+            applyBackup(r.file.data);
+            useThemeStore.getState().init();
+            setNotif(getNotifPrefs());
+            setLastBackup(getLastBackupAt());
+            void rescheduleNotifications();
+            Alert.alert('Pronto', 'Dados restaurados. Navegue pelas abas para ver tudo atualizado.');
+          } catch {
+            Alert.alert('Erro', 'Falha ao restaurar o backup.');
+          }
+        },
+      },
+    ]);
   }
 
   async function toggleEnabled(value: boolean) {
@@ -168,6 +204,27 @@ export default function AjustesScreen() {
         <LinkRow href="/gerenciar" icon="🗂️" label="Gerenciar rotina e dados" />
         <LinkRow href="/gerenciar/categorias" icon="🎨" label="Categorias & prioridades" />
       </Card>
+
+      <SectionTitle>Backup</SectionTitle>
+      <Card>
+        <TouchableOpacity onPress={onExport} className="flex-row items-center px-4 py-3 border-b border-gray-100 dark:border-gray-700/50">
+          <Text className="text-base mr-3">⬆️</Text>
+          <Text className="flex-1 text-sm text-gray-800 dark:text-gray-100">Exportar dados</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onImport} className="flex-row items-center px-4 py-3">
+          <Text className="text-base mr-3">⬇️</Text>
+          <Text className="flex-1 text-sm text-gray-800 dark:text-gray-100">Importar dados</Text>
+        </TouchableOpacity>
+      </Card>
+      <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 px-1">
+        {lastBackup ? `Último backup: ${fmtBackup(lastBackup)}` : 'Nenhum backup ainda.'}
+      </Text>
     </ScrollView>
   );
+}
+
+function fmtBackup(iso: string): string {
+  const [date, time] = iso.split('T');
+  const [y, m, d] = date.split('-');
+  return `${d}/${m}/${y} ${time?.slice(0, 5) ?? ''}`;
 }
