@@ -249,9 +249,30 @@ Exemplos (tempo livre 17:30–18:30): compromisso 17:30–18:00 → folga vira 1
 
 **Reagendamento (gatilhos):** ao abrir o app (boot, cobre a virada de dia no uso normal), ao alterar qualquer preferência de lembrete, e após importar um backup. **Formato do backup:** `{ version, exportedAt, data: { settings, categories, routine_blocks, monthly_routines, events, holidays, completions, training_days, exercises, exercise_logs } }`.
 
-## Sprint 7 — próxima (opcional)
+## Sprint 7 — opcional (em andamento)
 
-Sync em nuvem (Supabase) + Google Agenda. **S8:** módulo financeiro.
+### Parte A — Sync em nuvem (Supabase)
+
+**Premissa central:** o app continua **local-first**. A nuvem é um **espelho**, não a fonte da verdade. Tudo funciona offline; a sincronização apenas concilia cópias.
+
+**Modelo de dados.** Toda tabela de domínio ganhou `updated_at TEXT` (ISO-8601, mantido por **gatilhos** do SQLite) e `deleted INTEGER` (soft delete). Os repositórios filtram `deleted = 0` na leitura e fazem soft-delete na exclusão — o registro apagado sobe como `deleted = 1` e o apagamento propaga entre aparelhos. Tabela local `sync_state(key,value)` guarda o cursor (`last_pulled_at`), o `user_id` e o `last_sync_at`. `settings` (inclui a sessão de auth) **não** sincroniza.
+
+**Conflitos.** Resolução por **last-write-wins** comparando `updated_at` (não é CRDT). A função pura `lib/sync.ts` `mergeChanges(local, remote)` decide o que aplicar localmente e o que enviar; coberta por testes.
+
+**Fluxo.** `syncService.syncNow()` percorre as tabelas: puxa do Supabase o que mudou desde o cursor, mescla (LWW), aplica os vencedores localmente e envia os locais. O cursor **só avança em caso de sucesso** — uma rodada offline/falha simplesmente deixa as mudanças pendentes para a próxima (fila offline implícita, sem tabela de fila).
+
+**Identidade de registros.** O espelho usa o `id` inteiro local como chave. Funciona para o cenário previsto (um usuário, em geral um aparelho ativo por vez, com as edições propagando via sync). Criação simultânea de **novos** registros em dois aparelhos offline pode colidir `id` — limitação conhecida e aceita nesta versão (mirror, não CRDT).
+
+**Setup (você faz uma vez):**
+1. Crie um projeto no [Supabase](https://supabase.com) (free-tier basta: 500 MB de Postgres / 50 mil MAU).
+2. SQL Editor → cole e rode `supabase/schema.sql` (cria as tabelas espelho + RLS por `user_id`).
+3. Authentication → crie seu usuário (e-mail/senha). **O app não cria contas nem guarda credenciais no código.**
+4. Copie `.env.example` para `.env` e preencha `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` (Settings → API). O `.env` fica **fora do Git**.
+5. No app: Ajustes → **Conta e sincronização** → entre com seu e-mail/senha → **Sincronizar agora**.
+
+A anon key é pública por design; a segurança vem do **RLS** (cada usuário só lê/grava as próprias linhas). Sem `.env`, a tela mostra "Sincronização não configurada" e o app segue 100% local.
+
+**S8:** módulo financeiro.
 
 ## Mapa de sprints
 

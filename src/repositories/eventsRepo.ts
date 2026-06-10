@@ -1,4 +1,4 @@
-import { asc, eq, gte } from 'drizzle-orm';
+import { and, asc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { categories, events } from '@/db/schema';
 import type { Event } from '@/db/schema';
@@ -36,7 +36,7 @@ export function getUpcomingEvents(fromIso: string): EventWithCategory[] {
     .select(selection)
     .from(events)
     .leftJoin(categories, eq(events.categoryId, categories.id))
-    .where(gte(events.date, fromIso))
+    .where(and(gte(events.date, fromIso), eq(events.deleted, 0)))
     .orderBy(asc(events.date), asc(events.start))
     .all();
   return rows as EventWithCategory[];
@@ -47,7 +47,7 @@ export function getEventsByDate(iso: string): EventWithCategory[] {
     .select(selection)
     .from(events)
     .leftJoin(categories, eq(events.categoryId, categories.id))
-    .where(eq(events.date, iso))
+    .where(and(eq(events.date, iso), eq(events.deleted, 0)))
     .orderBy(asc(events.start))
     .all();
   return rows as EventWithCategory[];
@@ -58,13 +58,14 @@ export function getAllEvents(): EventWithCategory[] {
     .select(selection)
     .from(events)
     .leftJoin(categories, eq(events.categoryId, categories.id))
+    .where(eq(events.deleted, 0))
     .orderBy(asc(events.date), asc(events.start))
     .all();
   return rows as EventWithCategory[];
 }
 
 export function getEventById(id: number): Event | undefined {
-  return db.select().from(events).where(eq(events.id, id)).get();
+  return db.select().from(events).where(and(eq(events.id, id), eq(events.deleted, 0))).get();
 }
 
 export function createEvent(input: EventInput): number {
@@ -103,5 +104,5 @@ export function updateEvent(id: number, input: EventInput): void {
 }
 
 export function deleteEvent(id: number): void {
-  db.delete(events).where(eq(events.id, id)).run();
+  db.update(events).set({ deleted: 1 }).where(eq(events.id, id)).run();
 }

@@ -1,5 +1,12 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+// Sync columns (S7) shared by every domain table. updated_at is maintained by
+// triggers; deleted=1 is a soft delete that propagates to the cloud.
+const syncCols = {
+  updatedAt: text('updated_at'),
+  deleted: integer('deleted').notNull().default(0),
+};
+
 export const categories = sqliteTable('categories', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
@@ -7,6 +14,7 @@ export const categories = sqliteTable('categories', {
   tieGroup: text('tie_group'),
   protected: integer('protected').notNull().default(0),
   color: text('color'),
+  ...syncCols,
 });
 
 export const routineBlocks = sqliteTable('routine_blocks', {
@@ -20,6 +28,7 @@ export const routineBlocks = sqliteTable('routine_blocks', {
   note: text('note'),
   sortOrder: integer('sort_order').notNull().default(0),
   topic: text('topic'), // normalized study topic (S5), nullable
+  ...syncCols,
 });
 
 export const monthlyRoutines = sqliteTable('monthly_routines', {
@@ -32,6 +41,7 @@ export const monthlyRoutines = sqliteTable('monthly_routines', {
   lastDone: text('last_done'),
   suggestedBlock: text('suggested_block'),
   categoryId: integer('category_id').references(() => categories.id),
+  ...syncCols,
 });
 
 export const events = sqliteTable('events', {
@@ -43,6 +53,7 @@ export const events = sqliteTable('events', {
   categoryId: integer('category_id').references(() => categories.id),
   durationMin: integer('duration_min').notNull(),
   priority: text('priority'),
+  ...syncCols,
 });
 
 export const holidays = sqliteTable('holidays', {
@@ -50,6 +61,7 @@ export const holidays = sqliteTable('holidays', {
   date: text('date').notNull(),
   name: text('name').notNull(),
   type: text('type').notNull(),
+  ...syncCols,
 });
 
 export const completions = sqliteTable('completions', {
@@ -60,6 +72,7 @@ export const completions = sqliteTable('completions', {
   done: integer('done').notNull().default(0),
   valueNote: text('value_note'),
   loggedAt: text('logged_at').notNull(),
+  ...syncCols,
 });
 
 // ─── Sprint 4: settings + treino ──────────────────────────────────────────────
@@ -73,6 +86,7 @@ export const trainingDays = sqliteTable('training_days', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   label: text('label').notNull(), // 'Upper A' | 'Lower A' | 'Upper B' | 'Lower B'
   weekday: text('weekday').notNull(), // 'Seg' | 'Ter' | 'Qui' | 'Sex'
+  ...syncCols,
 });
 
 export const exercises = sqliteTable('exercises', {
@@ -89,6 +103,7 @@ export const exercises = sqliteTable('exercises', {
   ladder: text('ladder'),
   note: text('note'),
   sortOrder: integer('sort_order').notNull().default(0),
+  ...syncCols,
 });
 
 export const exerciseLogs = sqliteTable('exercise_logs', {
@@ -102,6 +117,13 @@ export const exerciseLogs = sqliteTable('exercise_logs', {
   holdSeconds: integer('hold_seconds'),
   note: text('note'),
   loggedAt: text('logged_at').notNull(),
+  ...syncCols,
+});
+
+// Local-only sync cursor / account info (not synced)
+export const syncState = sqliteTable('sync_state', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
 });
 
 export type Category = typeof categories.$inferSelect;

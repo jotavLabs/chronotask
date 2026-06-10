@@ -8,9 +8,22 @@ const migrations = {
       { idx: 0, when: 0, tag: '0000_initial', breakpoints: true },
       { idx: 1, when: 1, tag: '0001_sprint4', breakpoints: true },
       { idx: 2, when: 2, tag: '0002_topic', breakpoints: true },
+      { idx: 3, when: 3, tag: '0003_sync', breakpoints: true },
     ],
   },
   migrations: {
+    m0003: [
+      'categories', 'routine_blocks', 'monthly_routines', 'events', 'holidays',
+      'completions', 'training_days', 'exercises', 'exercise_logs',
+    ]
+      .flatMap((t) => [
+        `ALTER TABLE \`${t}\` ADD COLUMN \`updated_at\` text;`,
+        `ALTER TABLE \`${t}\` ADD COLUMN \`deleted\` integer DEFAULT 0 NOT NULL;`,
+        `CREATE TRIGGER IF NOT EXISTS \`${t}_sync_ins\` AFTER INSERT ON \`${t}\` WHEN NEW.updated_at IS NULL BEGIN UPDATE \`${t}\` SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE rowid = NEW.rowid; END;`,
+        `CREATE TRIGGER IF NOT EXISTS \`${t}_sync_upd\` AFTER UPDATE ON \`${t}\` WHEN NEW.updated_at IS OLD.updated_at BEGIN UPDATE \`${t}\` SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE rowid = NEW.rowid; END;`,
+      ])
+      .concat('CREATE TABLE IF NOT EXISTS `sync_state` (`key` text PRIMARY KEY NOT NULL, `value` text NOT NULL);')
+      .join('\n--> statement-breakpoint\n'),
     m0002: `
 ALTER TABLE \`routine_blocks\` ADD COLUMN \`topic\` text;
     `,

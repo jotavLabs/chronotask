@@ -14,6 +14,8 @@ function routine(overrides: Partial<MonthlyRoutine> = {}): MonthlyRoutine {
     lastDone: null,
     suggestedBlock: null,
     categoryId: 1,
+    updatedAt: null,
+    deleted: 0,
     ...overrides,
   };
 }

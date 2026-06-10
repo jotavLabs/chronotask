@@ -20,6 +20,10 @@ export function setSetting(key: string, value: string): void {
   else db.insert(settings).values({ key, value }).run();
 }
 
+export function deleteSetting(key: string): void {
+  db.delete(settings).where(eq(settings.key, key)).run();
+}
+
 const THEME_KEY = 'theme_mode';
 
 export function getThemeMode(): ThemeMode {

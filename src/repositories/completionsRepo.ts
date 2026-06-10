@@ -6,7 +6,7 @@ import { toIsoDate } from '@/lib/dayResolver';
 export type CompletionKey = { date: string; refType: string; refId: number };
 
 export function getCompletionsForDate(date: string) {
-  return db.select().from(completions).where(eq(completions.date, date)).all();
+  return db.select().from(completions).where(and(eq(completions.date, date), eq(completions.deleted, 0))).all();
 }
 
 export function isBlockDone(date: string, blockId: number): boolean {
@@ -18,6 +18,7 @@ export function isBlockDone(date: string, blockId: number): boolean {
         eq(completions.date, date),
         eq(completions.refType, 'block'),
         eq(completions.refId, blockId),
+        eq(completions.deleted, 0),
       ),
     )
     .get();
@@ -60,7 +61,7 @@ export function getBlockNote(date: string, blockId: number): string | null {
     .select({ note: completions.valueNote })
     .from(completions)
     .where(
-      and(eq(completions.date, date), eq(completions.refType, 'block'), eq(completions.refId, blockId)),
+      and(eq(completions.date, date), eq(completions.refType, 'block'), eq(completions.refId, blockId), eq(completions.deleted, 0)),
     )
     .get();
   return row?.note ?? null;
@@ -102,7 +103,7 @@ export function getDoneBlockIds(date: string): Set<number> {
     .select({ refId: completions.refId })
     .from(completions)
     .where(
-      and(eq(completions.date, date), eq(completions.refType, 'block'), eq(completions.done, 1)),
+      and(eq(completions.date, date), eq(completions.refType, 'block'), eq(completions.done, 1), eq(completions.deleted, 0)),
     )
     .all();
   return new Set(rows.map((r) => r.refId));

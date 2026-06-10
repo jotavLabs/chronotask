@@ -1,10 +1,10 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { categories, events, holidays, monthlyRoutines, routineBlocks } from '@/db/schema';
 import type { Category } from '@/db/schema';
 
 export function getAllCategories() {
-  return db.select().from(categories).all();
+  return db.select().from(categories).where(eq(categories.deleted, 0)).all();
 }
 
 export function buildCategoryMap(): Map<number, typeof categories.$inferSelect> {
@@ -50,14 +50,14 @@ export function updateCategory(id: number, input: CategoryInput): void {
 }
 
 export function deleteCategory(id: number): void {
-  db.delete(categories).where(eq(categories.id, id)).run();
+  db.update(categories).set({ deleted: 1 }).where(eq(categories.id, id)).run();
 }
 
 /** How many blocks/events/monthly routines reference this category. */
 export function countCategoryUsage(id: number): number {
-  const b = db.select({ id: routineBlocks.id }).from(routineBlocks).where(eq(routineBlocks.categoryId, id)).all().length;
-  const e = db.select({ id: events.id }).from(events).where(eq(events.categoryId, id)).all().length;
-  const m = db.select({ id: monthlyRoutines.id }).from(monthlyRoutines).where(eq(monthlyRoutines.categoryId, id)).all().length;
+  const b = db.select({ id: routineBlocks.id }).from(routineBlocks).where(and(eq(routineBlocks.categoryId, id), eq(routineBlocks.deleted, 0))).all().length;
+  const e = db.select({ id: events.id }).from(events).where(and(eq(events.categoryId, id), eq(events.deleted, 0))).all().length;
+  const m = db.select({ id: monthlyRoutines.id }).from(monthlyRoutines).where(and(eq(monthlyRoutines.categoryId, id), eq(monthlyRoutines.deleted, 0))).all().length;
   return b + e + m;
 }
 
@@ -68,13 +68,13 @@ export function isCuttable(c: Pick<Category, 'protected' | 'cutOrder'>): boolean
 
 /** Returns a Set<isoDate> of all holiday dates for use in pure day resolution. */
 export function buildHolidayDateSet(): Set<string> {
-  const rows = db.select({ date: holidays.date }).from(holidays).all();
+  const rows = db.select({ date: holidays.date }).from(holidays).where(eq(holidays.deleted, 0)).all();
   return new Set(rows.map((r) => r.date));
 }
 
 /** Returns a Map<isoDate, name> for holiday name lookups. */
 export function buildHolidayMap(): Map<string, string> {
-  const rows = db.select({ date: holidays.date, name: holidays.name }).from(holidays).all();
+  const rows = db.select({ date: holidays.date, name: holidays.name }).from(holidays).where(eq(holidays.deleted, 0)).all();
   return new Map(rows.map((r) => [r.date, r.name]));
 }
 
@@ -83,6 +83,7 @@ export function getHolidaysList(): { date: string; name: string }[] {
   return db
     .select({ date: holidays.date, name: holidays.name })
     .from(holidays)
+    .where(eq(holidays.deleted, 0))
     .orderBy(holidays.date)
     .all();
 }
