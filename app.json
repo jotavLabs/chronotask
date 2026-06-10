@@ -41,6 +41,12 @@
         {
           "color": "#3B82F6"
         }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "O app lê seus compromissos para incluí-los na rotina (somente leitura)."
+        }
       ]
     ],
     "experiments": {

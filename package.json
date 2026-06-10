@@ -8,6 +8,7 @@
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "expo": "~56.0.9",
+    "expo-calendar": "~56.0.8",
     "expo-constants": "~56.0.17",
     "expo-dev-client": "~56.0.19",
     "expo-device": "~56.0.4",

@@ -272,6 +272,18 @@ Exemplos (tempo livre 17:30–18:30): compromisso 17:30–18:00 → folga vira 1
 
 A anon key é pública por design; a segurança vem do **RLS** (cada usuário só lê/grava as próprias linhas). Sem `.env`, a tela mostra "Sincronização não configurada" e o app segue 100% local.
 
+### Parte B — Integração com a agenda (expo-calendar)
+
+Lê os calendários do **aparelho** (inclui a conta Google já sincronizada no Android — sem fricção de OAuth) e importa os próximos **14 dias** para a tabela `events`. **Somente leitura:** o app nunca escreve de volta no calendário.
+
+**Mapeamento.** `lib/calendar.ts` é puro e testado: converte cada evento do dispositivo em `{ date, start, end, title, externalId }` (eventos de dia inteiro viram 00:00–23:59; quem cruza a meia-noite é fixado ao fim do dia). O `calendarService` adiciona categoria **"Compromisso"** (criada se não existir) e prioridade **"Média"**, e faz **upsert por `external_id`** (`events.external_id`, m0004) — sem duplicar. Reimportar não regrava se nada mudou (não gera ruído de sync).
+
+**Em Ajustes → Agenda do aparelho:** escolher quais calendários importar, alternar **importar ao abrir o app** e **Sincronizar agenda agora**. Sem permissão, a tela explica como liberar nas configurações do sistema.
+
+> **Multi-dispositivo:** ative a importação da agenda em **um** aparelho; os compromissos propagam aos demais pelo sync da Parte A. Importar o mesmo calendário em vários aparelhos pode gerar compromissos duplicados (cada aparelho cria os próprios registros) — limitação conhecida.
+
+**Build nativo.** `expo-calendar` é módulo nativo: requer um novo **dev client / build EAS** (não roda no Expo Go). O plugin já está em `app.json` com a mensagem de permissão.
+
 **S8:** módulo financeiro.
 
 ## Mapa de sprints

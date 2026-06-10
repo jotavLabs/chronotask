@@ -9,9 +9,16 @@ const migrations = {
       { idx: 1, when: 1, tag: '0001_sprint4', breakpoints: true },
       { idx: 2, when: 2, tag: '0002_topic', breakpoints: true },
       { idx: 3, when: 3, tag: '0003_sync', breakpoints: true },
+      { idx: 4, when: 4, tag: '0004_agenda', breakpoints: true },
     ],
   },
   migrations: {
+    m0004: [
+      'ALTER TABLE `events` ADD COLUMN `external_id` text;',
+      // Non-unique: dedup is enforced in upsertEventByExternalId. A UNIQUE index could
+      // throw when a synced row from another device carries an already-seen external_id.
+      'CREATE INDEX IF NOT EXISTS `events_external_id_idx` ON `events` (`external_id`);',
+    ].join('\n--> statement-breakpoint\n'),
     m0003: [
       'categories', 'routine_blocks', 'monthly_routines', 'events', 'holidays',
       'completions', 'training_days', 'exercises', 'exercise_logs',

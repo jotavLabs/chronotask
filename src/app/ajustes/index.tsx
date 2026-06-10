@@ -202,6 +202,7 @@ export default function AjustesScreen() {
       <SectionTitle>Conta & Sincronização</SectionTitle>
       <Card>
         <LinkRow href={'/ajustes/conta' as Href} icon="☁️" label="Conta e sincronização na nuvem" />
+        <LinkRow href={'/ajustes/agenda' as Href} icon="📅" label="Agenda do aparelho" />
       </Card>
 
       <SectionTitle>Rotina</SectionTitle>

@@ -106,3 +106,55 @@ export function updateEvent(id: number, input: EventInput): void {
 export function deleteEvent(id: number): void {
   db.update(events).set({ deleted: 1 }).where(eq(events.id, id)).run();
 }
+
+export type ImportResult = 'inserted' | 'updated' | 'unchanged';
+
+/**
+ * Inserts or updates an event keyed by its device-calendar `external_id`.
+ * Skips the write when nothing changed, so re-imports don't bump updated_at
+ * (and don't create sync churn).
+ */
+export function upsertEventByExternalId(externalId: string, input: EventInput): ImportResult {
+  const durationMin = computeDuration(input.start, input.end) ?? 0;
+  const existing = db.select().from(events).where(eq(events.externalId, externalId)).get();
+
+  if (existing) {
+    const same =
+      existing.date === input.date &&
+      existing.start === input.start &&
+      existing.end === input.end &&
+      existing.title === input.title.trim() &&
+      existing.categoryId === input.categoryId &&
+      existing.priority === input.priority &&
+      existing.deleted === 0;
+    if (same) return 'unchanged';
+    db.update(events)
+      .set({
+        date: input.date,
+        start: input.start,
+        end: input.end,
+        title: input.title.trim(),
+        categoryId: input.categoryId,
+        durationMin,
+        priority: input.priority,
+        deleted: 0,
+      })
+      .where(eq(events.id, existing.id))
+      .run();
+    return 'updated';
+  }
+
+  db.insert(events)
+    .values({
+      date: input.date,
+      start: input.start,
+      end: input.end,
+      title: input.title.trim(),
+      categoryId: input.categoryId,
+      durationMin,
+      priority: input.priority,
+      externalId,
+    })
+    .run();
+  return 'inserted';
+}

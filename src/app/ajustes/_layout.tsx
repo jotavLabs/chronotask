@@ -15,6 +15,7 @@ export default function AjustesLayout() {
     >
       <Stack.Screen name="index" options={{ title: 'Ajustes' }} />
       <Stack.Screen name="conta" options={{ title: 'Conta & Sincronização' }} />
+      <Stack.Screen name="agenda" options={{ title: 'Agenda do aparelho' }} />
     </Stack>
   );
 }

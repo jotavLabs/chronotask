@@ -66,3 +66,36 @@ export function getLastBackupAt(): string | null {
 export function setLastBackupAt(iso: string): void {
   setSetting('last_backup_at', iso);
 }
+
+// ─── agenda (S7B) ─────────────────────────────────────────────────────────────
+
+export function getAgendaCalendarIds(): string[] {
+  const raw = getSetting('agenda_calendar_ids');
+  if (!raw) return [];
+  try {
+    const v: unknown = JSON.parse(raw);
+    return Array.isArray(v) ? v.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function setAgendaCalendarIds(ids: string[]): void {
+  setSetting('agenda_calendar_ids', JSON.stringify(ids));
+}
+
+export function getAgendaAutoImport(): boolean {
+  return getSetting('agenda_auto_import') === '1';
+}
+
+export function setAgendaAutoImport(on: boolean): void {
+  setSetting('agenda_auto_import', on ? '1' : '0');
+}
+
+export function getAgendaLastImportAt(): string | null {
+  return getSetting('agenda_last_import_at');
+}
+
+export function setAgendaLastImportAt(iso: string): void {
+  setSetting('agenda_last_import_at', iso);
+}

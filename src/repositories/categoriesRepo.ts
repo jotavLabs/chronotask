@@ -35,6 +35,17 @@ export function createCategory(input: CategoryInput): number {
   return row!.id;
 }
 
+/** Returns the id of a category with this name (active), creating a plain one if absent. */
+export function getOrCreateCategoryByName(name: string): number {
+  const existing = db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(and(eq(categories.name, name), eq(categories.deleted, 0)))
+    .get();
+  if (existing) return existing.id;
+  return createCategory({ name, cutOrder: null, protected: 0, tieGroup: null, color: null });
+}
+
 export function updateCategory(id: number, input: CategoryInput): void {
   db
     .update(categories)

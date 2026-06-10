@@ -53,6 +53,7 @@ export const events = sqliteTable('events', {
   categoryId: integer('category_id').references(() => categories.id),
   durationMin: integer('duration_min').notNull(),
   priority: text('priority'),
+  externalId: text('external_id'), // device-calendar event id (S7B); null = criado no app
   ...syncCols,
 });
 

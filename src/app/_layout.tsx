@@ -8,6 +8,7 @@ import { backfillTopics } from '@/db/backfillTopics';
 import migrations from '@/db/migrations';
 import { runSeed } from '@/db/seed';
 import { seedTraining } from '@/db/seedTraining';
+import { maybeAutoImportAgenda } from '@/services/calendarService';
 import { configureNotifications, rescheduleNotifications } from '@/services/notificationService';
 import { useThemeStore } from '@/store/themeStore';
 
@@ -44,6 +45,7 @@ function MobileApp() {
         useThemeStore.getState().init();
         configureNotifications();
         void rescheduleNotifications();
+        void maybeAutoImportAgenda();
       } catch (e) {
         console.error('[seed]', e);
       }
