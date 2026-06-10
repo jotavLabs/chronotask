@@ -199,6 +199,11 @@ export default function AjustesScreen() {
         Os lembretes seguem o dia adaptado e reagendam ao abrir o app. Nada notifica durante o sono.
       </Text>
 
+      <SectionTitle>Conta & Sincronização</SectionTitle>
+      <Card>
+        <LinkRow href={'/ajustes/conta' as Href} icon="☁️" label="Conta e sincronização na nuvem" />
+      </Card>
+
       <SectionTitle>Rotina</SectionTitle>
       <Card>
         <LinkRow href="/gerenciar" icon="🗂️" label="Gerenciar rotina e dados" />
