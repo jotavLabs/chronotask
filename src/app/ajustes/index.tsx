@@ -1,7 +1,12 @@
 import { Link } from 'expo-router';
-import { Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import type { Href } from 'expo-router';
+import type { NotifPrefs, NotifScope } from '@/lib/notifications';
 import { THEME_MODES } from '@/lib/theme';
+import { getLastBackupAt, getNotifPrefs, setNotifPrefs } from '@/repositories/settingsRepo';
+import { applyBackup, exportBackup, pickBackup } from '@/services/backupService';
+import { requestNotifPermission, rescheduleNotifications } from '@/services/notificationService';
 import { useThemeStore } from '@/store/themeStore';
 
 function SectionTitle({ children }: { children: string }) {
@@ -28,9 +33,121 @@ function LinkRow({ href, icon, label }: { href: Href; icon: string; label: strin
   );
 }
 
+function SwitchRow({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (v: boolean) => void }) {
+  return (
+    <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700/50">
+      <Text className="text-sm text-gray-800 dark:text-gray-100">{label}</Text>
+      <Switch value={value} onValueChange={onValueChange} />
+    </View>
+  );
+}
+
+function Chips<T extends string | number>({
+  label,
+  options,
+  value,
+  onChange,
+  render,
+}: {
+  label: string;
+  options: T[];
+  value: T;
+  onChange: (v: T) => void;
+  render: (v: T) => string;
+}) {
+  return (
+    <View className="px-4 py-3 border-b border-gray-100 dark:border-gray-700/50">
+      <Text className="text-xs text-gray-400 dark:text-gray-500 mb-2">{label}</Text>
+      <View className="flex-row flex-wrap">
+        {options.map((opt) => {
+          const selected = opt === value;
+          return (
+            <TouchableOpacity
+              key={String(opt)}
+              onPress={() => onChange(opt)}
+              className={`px-3 py-1.5 rounded-full mr-2 mb-1 border ${
+                selected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-600'
+              }`}
+            >
+              <Text className={`text-xs font-medium ${selected ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+                {render(opt)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const SCOPE_LABEL: Record<NotifScope, string> = {
+  importantes: 'Importantes',
+  todos: 'Todos os blocos',
+  nenhum: 'Nenhum bloco',
+};
+
 export default function AjustesScreen() {
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
+  const [notif, setNotif] = useState<NotifPrefs>(() => getNotifPrefs());
+  const [lastBackup, setLastBackup] = useState<string | null>(() => getLastBackupAt());
+
+  function update(patch: Partial<NotifPrefs>) {
+    const next = { ...notif, ...patch };
+    setNotif(next);
+    setNotifPrefs(next);
+    void rescheduleNotifications();
+  }
+
+  async function onExport() {
+    const r = await exportBackup();
+    if (r.ok) setLastBackup(getLastBackupAt());
+    else Alert.alert('Erro', r.error ?? 'Falha ao exportar.');
+  }
+
+  async function onImport() {
+    const r = await pickBackup();
+    if (r.canceled) return;
+    if (!r.ok) {
+      Alert.alert('Arquivo inválido', r.error);
+      return;
+    }
+    Alert.alert('Importar backup?', 'Isso substitui TODOS os dados atuais. Esta ação não pode ser desfeita.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Importar',
+        style: 'destructive',
+        onPress: () => {
+          try {
+            applyBackup(r.file.data);
+            useThemeStore.getState().init();
+            setNotif(getNotifPrefs());
+            setLastBackup(getLastBackupAt());
+            void rescheduleNotifications();
+            Alert.alert('Pronto', 'Dados restaurados. Navegue pelas abas para ver tudo atualizado.');
+          } catch {
+            Alert.alert('Erro', 'Falha ao restaurar o backup.');
+          }
+        },
+      },
+    ]);
+  }
+
+  async function toggleEnabled(value: boolean) {
+    if (!value) {
+      update({ enabled: false });
+      return;
+    }
+    const granted = await requestNotifPermission();
+    if (granted) {
+      update({ enabled: true });
+    } else {
+      Alert.alert(
+        'Permissão negada',
+        'Ative as notificações nas configurações do sistema para receber lembretes.',
+      );
+    }
+  }
 
   return (
     <ScrollView className="flex-1 bg-gray-50 dark:bg-gray-900" contentContainerStyle={{ padding: 16 }}>
@@ -54,25 +171,60 @@ export default function AjustesScreen() {
         })}
       </Card>
 
+      <SectionTitle>Lembretes</SectionTitle>
+      <Card>
+        <SwitchRow label="Ativar lembretes" value={notif.enabled} onValueChange={toggleEnabled} />
+        {notif.enabled && (
+          <>
+            <Chips
+              label="Quais blocos notificar"
+              options={['importantes', 'todos', 'nenhum'] as NotifScope[]}
+              value={notif.scope}
+              onChange={(scope) => update({ scope })}
+              render={(s) => SCOPE_LABEL[s]}
+            />
+            <Chips
+              label="Antecedência"
+              options={[0, 5, 10, 15]}
+              value={notif.leadMin}
+              onChange={(leadMin) => update({ leadMin })}
+              render={(n) => (n === 0 ? 'No início' : `${n} min antes`)}
+            />
+            <SwitchRow label="Avisos de rotinas mensais" value={notif.monthly} onValueChange={(monthly) => update({ monthly })} />
+            <SwitchRow label="Resumo do dia ao acordar" value={notif.dailySummary} onValueChange={(dailySummary) => update({ dailySummary })} />
+          </>
+        )}
+      </Card>
+      <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 px-1">
+        Os lembretes seguem o dia adaptado e reagendam ao abrir o app. Nada notifica durante o sono.
+      </Text>
+
       <SectionTitle>Rotina</SectionTitle>
       <Card>
         <LinkRow href="/gerenciar" icon="🗂️" label="Gerenciar rotina e dados" />
         <LinkRow href="/gerenciar/categorias" icon="🎨" label="Categorias & prioridades" />
       </Card>
 
-      <SectionTitle>Em breve</SectionTitle>
+      <SectionTitle>Backup</SectionTitle>
       <Card>
-        <View className="flex-row items-center px-4 py-3 border-b border-gray-100 dark:border-gray-700/50">
-          <Text className="text-base mr-3">🔔</Text>
-          <Text className="flex-1 text-sm text-gray-400 dark:text-gray-500">Notificações</Text>
-          <Text className="text-xs text-gray-300 dark:text-gray-600">Sprint 6</Text>
-        </View>
-        <View className="flex-row items-center px-4 py-3">
-          <Text className="text-base mr-3">💾</Text>
-          <Text className="flex-1 text-sm text-gray-400 dark:text-gray-500">Backup / exportação</Text>
-          <Text className="text-xs text-gray-300 dark:text-gray-600">Sprint 6</Text>
-        </View>
+        <TouchableOpacity onPress={onExport} className="flex-row items-center px-4 py-3 border-b border-gray-100 dark:border-gray-700/50">
+          <Text className="text-base mr-3">⬆️</Text>
+          <Text className="flex-1 text-sm text-gray-800 dark:text-gray-100">Exportar dados</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onImport} className="flex-row items-center px-4 py-3">
+          <Text className="text-base mr-3">⬇️</Text>
+          <Text className="flex-1 text-sm text-gray-800 dark:text-gray-100">Importar dados</Text>
+        </TouchableOpacity>
       </Card>
+      <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 px-1">
+        {lastBackup ? `Último backup: ${fmtBackup(lastBackup)}` : 'Nenhum backup ainda.'}
+      </Text>
     </ScrollView>
   );
+}
+
+function fmtBackup(iso: string): string {
+  const [date, time] = iso.split('T');
+  const [y, m, d] = date.split('-');
+  return `${d}/${m}/${y} ${time?.slice(0, 5) ?? ''}`;
 }

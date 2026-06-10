@@ -92,7 +92,9 @@ src/
 │   ├── topics.ts            # topicFor — normaliza estudos por tema
 │   ├── stats.ts             # agregações (tempo/tema, consistência, volume)
 │   ├── commands.ts          # parseCommand — parser do chat (deps injetados)
-│   └── __tests__/           # 94 testes unitários
+│   ├── notifications.ts     # buildNotificationPlan (plano do dia, puro)
+│   ├── backup.ts            # buildBackup/parseBackup (serialização, puro)
+│   └── __tests__/           # 107 testes unitários
 ├── repositories/            # Único lugar com SQL
 │   ├── blocksRepo.ts        # CRUD + reorder/move + getBlocksForDayByCategory
 │   ├── monthlyRoutinesRepo.ts # CRUD + scheduleMonthly + markMonthlyDone
@@ -103,7 +105,11 @@ src/
 │   ├── trainingRepo.ts      # treinos/exercícios + log de séries + última sessão
 │   ├── settingsRepo.ts      # get/set settings + theme mode
 │   ├── statsRepo.ts         # completed/scheduled/reps para as agregações
-│   └── commandDeps.ts       # monta os dados do chat via repos/motor
+│   ├── commandDeps.ts       # monta os dados do chat via repos/motor
+│   └── backupRepo.ts        # getAllData (export) + restoreData (import transacional)
+├── services/                # efeitos colaterais (async, não-puro)
+│   ├── notificationService.ts # configura/permite/reagenda via expo-notifications
+│   └── backupService.ts     # export (file-system+sharing) / import (document-picker)
 ├── hooks/
 │   └── useTheme.ts          # scheme efetivo + tokens
 └── store/
@@ -124,6 +130,8 @@ src/
 | Estilo | NativeWind 4 (Tailwind CSS 3) |
 | Estado | Zustand 5 |
 | Datas | date-fns 4 |
+| Notificações | expo-notifications (locais) |
+| Arquivos | expo-file-system + expo-sharing + expo-document-picker |
 | Testes | jest-expo |
 
 ---
@@ -233,9 +241,17 @@ Exemplos (tempo livre 17:30–18:30): compromisso 17:30–18:00 → folga vira 1
 
 **Navegação:** 5 abas (Hoje · Semana · Treino · Estudos · **Mais**). A aba **Mais** reúne Estatísticas, Chat, Gerenciar e Ajustes (rotas empilhadas) — evita tab bar lotada. O ⚙️ no header continua como atalho para Ajustes.
 
-## Sprint 6 — próxima
+## Sprint 6 — entregue
 
-Lembretes (**notificações locais**) por bloco/compromisso e **backup/exportação** (JSON). Espaços já reservados na tela de Ajustes.
+**Lembretes (notificações locais).** `lib/notifications.buildNotificationPlan` (puro, testado) gera o plano do dia a partir do **Dia Adaptado** (feriado/compromissos/cortes já aplicados): lembrete por bloco conforme o **escopo** (Importantes = Treino/Estudo/Cardio + compromissos · Todos · Nenhum) e **antecedência** (0/5/10/15 min), avisos de rotina mensal (agendar/atrasada), e **resumo do dia ao acordar**. Nada dispara durante o sono (22:00–06:00), exceto o resumo. `services/notificationService` configura handler/canal, pede permissão e **reagenda** (cancela tudo + recria) para hoje + 2 dias. Preferências persistidas em `settings`, na tela Ajustes.
+
+**Backup / restauração.** `lib/backup` (puro, testado com round-trip): `buildBackup`/`parseBackup` com `version` + validação. `backupRepo` lê todas as tabelas e restaura em **transação** (tudo ou nada, respeitando FKs). `backupService` exporta JSON via `expo-file-system` + `expo-sharing` e importa via `expo-document-picker` (valida → confirma sobrescrita → restaura → reaplica tema e reagenda). Arquivo inválido/corrompido não quebra o app. "Último backup" exibido em Ajustes.
+
+**Reagendamento (gatilhos):** ao abrir o app (boot, cobre a virada de dia no uso normal), ao alterar qualquer preferência de lembrete, e após importar um backup. **Formato do backup:** `{ version, exportedAt, data: { settings, categories, routine_blocks, monthly_routines, events, holidays, completions, training_days, exercises, exercise_logs } }`.
+
+## Sprint 7 — próxima (opcional)
+
+Sync em nuvem (Supabase) + Google Agenda. **S8:** módulo financeiro.
 
 ## Mapa de sprints
 
