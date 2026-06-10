@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { categories, monthlyRoutines } from '@/db/schema';
 import type { MonthlyRoutine } from '@/db/schema';
@@ -34,13 +34,14 @@ export function getAllMonthly(): MonthlyWithCategory[] {
     })
     .from(monthlyRoutines)
     .leftJoin(categories, eq(monthlyRoutines.categoryId, categories.id))
+    .where(eq(monthlyRoutines.deleted, 0))
     .orderBy(monthlyRoutines.windowStartDay)
     .all();
   return rows as MonthlyWithCategory[];
 }
 
 export function getMonthlyById(id: number): MonthlyRoutine | undefined {
-  return db.select().from(monthlyRoutines).where(eq(monthlyRoutines.id, id)).get();
+  return db.select().from(monthlyRoutines).where(and(eq(monthlyRoutines.id, id), eq(monthlyRoutines.deleted, 0))).get();
 }
 
 export function createMonthly(input: MonthlyInput): number {
@@ -75,7 +76,7 @@ export function updateMonthly(id: number, input: MonthlyInput): void {
 }
 
 export function deleteMonthly(id: number): void {
-  db.delete(monthlyRoutines).where(eq(monthlyRoutines.id, id)).run();
+  db.update(monthlyRoutines).set({ deleted: 1 }).where(eq(monthlyRoutines.id, id)).run();
 }
 
 /** Schedules the routine for a specific ISO date this month. */

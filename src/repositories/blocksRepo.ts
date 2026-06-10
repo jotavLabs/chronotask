@@ -47,7 +47,7 @@ export function getBlocksForDay(dayLabel: string): BlockWithCategory[] {
     })
     .from(routineBlocks)
     .leftJoin(categories, eq(routineBlocks.categoryId, categories.id))
-    .where(eq(routineBlocks.dayLabel, dayLabel))
+    .where(and(eq(routineBlocks.dayLabel, dayLabel), eq(routineBlocks.deleted, 0)))
     .orderBy(routineBlocks.sortOrder)
     .all();
 
@@ -55,7 +55,11 @@ export function getBlocksForDay(dayLabel: string): BlockWithCategory[] {
 }
 
 export function getBlockById(id: number): RoutineBlock | undefined {
-  return db.select().from(routineBlocks).where(eq(routineBlocks.id, id)).get();
+  return db
+    .select()
+    .from(routineBlocks)
+    .where(and(eq(routineBlocks.id, id), eq(routineBlocks.deleted, 0)))
+    .get();
 }
 
 /** Blocks of a given day filtered by category name (e.g. 'Estudo'). */
@@ -67,7 +71,7 @@ function nextSortOrder(dayLabel: string): number {
   const row = db
     .select({ value: max(routineBlocks.sortOrder) })
     .from(routineBlocks)
-    .where(eq(routineBlocks.dayLabel, dayLabel))
+    .where(and(eq(routineBlocks.dayLabel, dayLabel), eq(routineBlocks.deleted, 0)))
     .get();
   return (row?.value ?? -1) + 1;
 }
@@ -114,10 +118,11 @@ export function updateBlock(id: number, input: BlockInput): void {
  */
 export function deleteBlock(id: number): void {
   db.transaction((tx) => {
-    tx.delete(completions)
+    tx.update(completions)
+      .set({ deleted: 1 })
       .where(and(eq(completions.refType, 'block'), eq(completions.refId, id)))
       .run();
-    tx.delete(routineBlocks).where(eq(routineBlocks.id, id)).run();
+    tx.update(routineBlocks).set({ deleted: 1 }).where(eq(routineBlocks.id, id)).run();
   });
 }
 

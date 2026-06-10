@@ -21,6 +21,8 @@ export function getCompletedBlocks(startIso: string, endIso: string): CompletedB
       and(
         eq(completions.refType, 'block'),
         eq(completions.done, 1),
+        eq(completions.deleted, 0),
+        eq(routineBlocks.deleted, 0),
         gte(completions.date, startIso),
         lte(completions.date, endIso),
       ),
@@ -43,6 +45,7 @@ export function getScheduledCounts(
     })
     .from(routineBlocks)
     .leftJoin(categories, eq(routineBlocks.categoryId, categories.id))
+    .where(eq(routineBlocks.deleted, 0))
     .all();
 
   const byDay = new Map<string, typeof all>();
@@ -80,6 +83,7 @@ export function getExerciseRepsRange(startIso: string, endIso: string): { exerci
     .where(
       and(
         isNotNull(exerciseLogs.reps),
+        eq(exerciseLogs.deleted, 0),
         gte(exerciseLogs.date, startIso),
         lte(exerciseLogs.date, endIso),
       ),

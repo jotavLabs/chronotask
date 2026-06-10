@@ -6,14 +6,14 @@ import type { Exercise, ExerciseLog, TrainingDay } from '@/db/schema';
 export type TrainingWithExercises = { day: TrainingDay; exercises: Exercise[] };
 
 export function getTrainingDays(): TrainingDay[] {
-  return db.select().from(trainingDays).orderBy(asc(trainingDays.id)).all();
+  return db.select().from(trainingDays).where(eq(trainingDays.deleted, 0)).orderBy(asc(trainingDays.id)).all();
 }
 
 export function getExercisesForDay(trainingDayId: number): Exercise[] {
   return db
     .select()
     .from(exercises)
-    .where(eq(exercises.trainingDayId, trainingDayId))
+    .where(and(eq(exercises.trainingDayId, trainingDayId), eq(exercises.deleted, 0)))
     .orderBy(asc(exercises.sortOrder))
     .all();
 }
@@ -58,7 +58,7 @@ export function getLogsForDate(exerciseId: number, date: string): ExerciseLog[] 
   return db
     .select()
     .from(exerciseLogs)
-    .where(and(eq(exerciseLogs.exerciseId, exerciseId), eq(exerciseLogs.date, date)))
+    .where(and(eq(exerciseLogs.exerciseId, exerciseId), eq(exerciseLogs.date, date), eq(exerciseLogs.deleted, 0)))
     .orderBy(asc(exerciseLogs.setNumber))
     .all();
 }
@@ -71,7 +71,7 @@ export function getLastSession(
   const rows = db
     .select()
     .from(exerciseLogs)
-    .where(eq(exerciseLogs.exerciseId, exerciseId))
+    .where(and(eq(exerciseLogs.exerciseId, exerciseId), eq(exerciseLogs.deleted, 0)))
     .orderBy(desc(exerciseLogs.date), asc(exerciseLogs.setNumber))
     .all();
   if (rows.length === 0) return null;
