@@ -17,7 +17,8 @@ export default function SemanaScreen() {
 
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const selectedIso = toIsoDate(selectedDate);
-  const selectedLabel = resolveDayLabel(selectedDate, holidayDates);
+  const selectedLabel = resolveDayLabel(selectedDate);
+  const selectedIsHoliday = holidayDates.has(selectedIso);
 
   const { days, dates, loadDay, loadDoneForDate, toggleBlock } = useRoutineStore();
   const [extras, setExtras] = useState<Set<string>>(new Set());
@@ -26,7 +27,7 @@ export default function SemanaScreen() {
   useFocusEffect(
     useCallback(() => {
       for (const d of weekDates) {
-        const label = resolveDayLabel(d, holidayDates);
+        const label = resolveDayLabel(d);
         loadDay(label);
         loadDoneForDate(toIsoDate(d));
       }
@@ -47,8 +48,8 @@ export default function SemanaScreen() {
             const iso = toIsoDate(d);
             const isSelected = iso === selectedIso;
             const isToday = iso === todayIso;
-            const label = resolveDayLabel(d, holidayDates);
-            const isFeriado = label === 'Feriado';
+            const label = resolveDayLabel(d);
+            const isFeriado = holidayDates.has(iso);
             const dayBlocks = days[label]?.blocks ?? [];
             const dayDone = dates[iso] ?? new Set<number>();
             const allDone = dayBlocks.length > 0 && dayBlocks.every((b) => dayDone.has(b.id));
@@ -93,11 +94,11 @@ export default function SemanaScreen() {
           <Text className="text-base font-semibold text-gray-800 dark:text-gray-100 capitalize">
             {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
           </Text>
-          {selectedLabel === 'Feriado' && (
+          {selectedIsHoliday && (
             <Text className="text-xs text-yellow-600 dark:text-yellow-400 mt-0.5">Feriado</Text>
           )}
         </View>
-        {(extras.has(selectedIso) || selectedLabel === 'Feriado') && (
+        {(extras.has(selectedIso) || selectedIsHoliday) && (
           <TouchableOpacity
             onPress={() => router.navigate({ pathname: '/', params: { date: selectedIso } })}
             className="px-3 py-1.5 rounded-full bg-orange-100 dark:bg-orange-900/40"

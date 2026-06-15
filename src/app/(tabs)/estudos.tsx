@@ -10,7 +10,6 @@ import { categoryColorFor } from '@/lib/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { getBlocksForDayByCategory } from '@/repositories/blocksRepo';
 import type { BlockWithCategory } from '@/repositories/blocksRepo';
-import { buildHolidayDateSet } from '@/repositories/categoriesRepo';
 import { getDoneBlockIds, setBlockDone } from '@/repositories/completionsRepo';
 
 const CAT = 'Estudo';
@@ -38,8 +37,7 @@ export default function EstudosScreen() {
   const color = categoryColorFor('#10B981', scheme); // Estudo accent
   const today = useMemo(() => new Date(), []);
   const iso = toIsoDate(today);
-  const holidays = useMemo(() => buildHolidayDateSet(), []);
-  const dayLabel = useMemo(() => resolveDayLabel(today, holidays), [today, holidays]);
+  const dayLabel = useMemo(() => resolveDayLabel(today), [today]);
   const weekDates = useMemo(() => getWeekDates(today), [today]);
 
   const [tab, setTab] = useState<'hoje' | 'semana'>('hoje');
@@ -67,10 +65,10 @@ export default function EstudosScreen() {
   const week = useMemo(
     () =>
       weekDates.map((d) => {
-        const label = resolveDayLabel(d, holidays);
+        const label = resolveDayLabel(d);
         return { date: d, label, blocks: getBlocksForDayByCategory(label, CAT) };
       }),
-    [weekDates, holidays],
+    [weekDates],
   );
 
   return (

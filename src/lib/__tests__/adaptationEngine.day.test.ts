@@ -1,4 +1,4 @@
-import { buildAdaptedDay } from '../adaptationEngine';
+import { buildAdaptedDay, checkWindowInvariants } from '../adaptationEngine';
 import type {
   AdaptedDayDeps,
   EngineBlock,
@@ -8,7 +8,7 @@ import type {
 } from '../adaptationEngine';
 
 const CATS: EngineCategory[] = [
-  { id: 1, name: 'Trabalho', cutOrder: null, protected: 1, tieGroup: null },
+  { id: 1, name: 'Trabalho', cutOrder: null, protected: 1, tieGroup: null, skipOnHoliday: 1 },
   { id: 2, name: 'Sono', cutOrder: 5, protected: 0, tieGroup: null },
   { id: 3, name: 'Rotina', cutOrder: 4, protected: 0, tieGroup: null },
   { id: 4, name: 'Alimentação', cutOrder: 3, protected: 0, tieGroup: null },
@@ -57,23 +57,22 @@ describe('buildAdaptedDay', () => {
     expect(d.timeline.some((i) => i.adapted || i.removed)).toBe(false);
   });
 
-  it('2. holiday → MODE A: extends, no cuts, fits the event', () => {
-    const dayFeriado: EngineBlock[] = [
-      block(1, 4, '08:00', '08:30', 30),
-      block(2, 7, '09:00', '12:00', 180), // Lazer
-      block(3, 4, '12:00', '13:00', 60),
-      block(4, 7, '14:00', '19:00', 300), // Lazer
-      block(5, 2, '23:00', '08:00', 540), // Sono
-    ];
+  it('2. holiday → MODE A: drops skip_on_holiday (Trabalho), no cuts, fits the event', () => {
     const event: EngineEvent = { id: 1, title: 'Almoço família', start: '13:00', end: '14:00', durationMin: 60, categoryName: null };
-    const d = buildAdaptedDay(
-      deps({ dayLabel: 'Feriado', blocks: dayFeriado, events: [event], holidayName: 'Natal' }),
-    );
+    // same weekday routine, but as a holiday: Trabalho (block 3) is removed by the rule
+    const d = buildAdaptedDay(deps({ isHoliday: true, events: [event], holidayName: 'Natal' }));
     expect(d.mode).toBe('FERIADO');
     expect(d.verdict).toBe('FERIADO');
     expect(d.cutsByLevel).toHaveLength(0);
-    expect(d.timeline.some((i) => i.adapted || i.removed)).toBe(false);
+    expect(tItem(d, 'routine-3')).toBeUndefined(); // Trabalho dropped on the holiday
+    expect(d.timeline.some((i) => i.adapted || i.removed)).toBe(false); // never cuts
     expect(tItem(d, 'event-1')).toMatchObject({ start: '13:00', end: '14:00' });
+  });
+
+  it('2b. holiday with no events keeps the window contiguous (free time absorbs)', () => {
+    const d = buildAdaptedDay(deps({ isHoliday: true }));
+    expect(tItem(d, 'routine-3')).toBeUndefined(); // Trabalho dropped
+    expect(checkWindowInvariants(d.timeline)).toEqual([]); // no gaps; window full
   });
 
   it('3. 120-min event on a normal day → cuts Lazer first, then tied level', () => {

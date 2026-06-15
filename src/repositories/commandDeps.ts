@@ -7,7 +7,7 @@ import { getMonthlyStatus, MONTHLY_STATUS_LABEL } from '@/lib/recurrence';
 import { monthRange, timeByTopic } from '@/lib/stats';
 import { trainingForDate } from '@/lib/trainingResolver';
 import { getBlocksForDayByCategory } from '@/repositories/blocksRepo';
-import { buildHolidayDateSet, getHolidaysList } from '@/repositories/categoriesRepo';
+import { getHolidaysList } from '@/repositories/categoriesRepo';
 import { loadAdaptedDay } from '@/repositories/adaptedDayRepo';
 import { getAllMonthly } from '@/repositories/monthlyRoutinesRepo';
 import { getCompletedBlocks } from '@/repositories/statsRepo';
@@ -51,9 +51,8 @@ export function buildCommandDeps(): CommandDeps {
     },
 
     week() {
-      const holidays = buildHolidayDateSet();
       return getWeekDates(new Date()).map((d) => {
-        const label = resolveDayLabel(d, holidays);
+        const label = resolveDayLabel(d);
         return `${shortWeekdayPt(d)} ${d.getDate()} — ${label}`;
       });
     },
@@ -66,8 +65,7 @@ export function buildCommandDeps(): CommandDeps {
     },
 
     studies(date) {
-      const holidays = buildHolidayDateSet();
-      const label = resolveDayLabel(date, holidays);
+      const label = resolveDayLabel(date);
       const blocks = getBlocksForDayByCategory(label, 'Estudo');
       if (blocks.length === 0) return ['Nenhum bloco de estudo hoje.'];
       return blocks.map((b) => `${b.start} ${b.activity}${b.topic ? ` [${b.topic}]` : ''}`);

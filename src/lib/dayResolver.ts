@@ -1,6 +1,8 @@
 import { getDay } from 'date-fns';
 
-export type DayLabel = 'Seg' | 'Ter' | 'Qua' | 'Qui' | 'Sex' | 'Sab' | 'Dom' | 'Feriado';
+// Holidays are no longer a day label — they're a rule applied by the engine
+// (categories with skip_on_holiday are removed from the weekday routine).
+export type DayLabel = 'Seg' | 'Ter' | 'Qua' | 'Qui' | 'Sex' | 'Sab' | 'Dom';
 
 const JS_DAY_TO_LABEL: Record<number, DayLabel> = {
   0: 'Dom',
@@ -12,15 +14,14 @@ const JS_DAY_TO_LABEL: Record<number, DayLabel> = {
   6: 'Sab',
 };
 
-/**
- * Pure: resolves a Date to a DayLabel.
- * @param date         The date to resolve.
- * @param holidayDates Set of ISO strings (YYYY-MM-DD) that are holidays.
- */
-export function resolveDayLabel(date: Date, holidayDates: Set<string>): DayLabel {
-  const iso = toIsoDate(date);
-  if (holidayDates.has(iso)) return 'Feriado';
+/** Pure: resolves a Date to its weekday label (holidays use the weekday routine). */
+export function resolveDayLabel(date: Date): DayLabel {
   return JS_DAY_TO_LABEL[getDay(date)];
+}
+
+/** Whether a date is a holiday (lookup against the provided ISO set). */
+export function isHolidayDate(date: Date, holidayDates: Set<string>): boolean {
+  return holidayDates.has(toIsoDate(date));
 }
 
 /** Formats a Date to YYYY-MM-DD (local timezone). */

@@ -8,10 +8,9 @@ import type { DayLabel } from '@/lib/dayResolver';
 import { formatDuration } from '@/lib/validation';
 import { deleteBlock, getBlocksForDay, moveBlock } from '@/repositories/blocksRepo';
 import type { BlockWithCategory } from '@/repositories/blocksRepo';
-import { buildHolidayDateSet } from '@/repositories/categoriesRepo';
 
 export default function BlocosScreen() {
-  const initialDay = useMemo(() => resolveDayLabel(new Date(), buildHolidayDateSet()), []);
+  const initialDay = useMemo(() => resolveDayLabel(new Date()), []);
   const [dayLabel, setDayLabel] = useState<DayLabel>(initialDay);
   const [blocks, setBlocks] = useState<BlockWithCategory[]>([]);
   const [pendingDelete, setPendingDelete] = useState<number | null>(null);
