@@ -2,7 +2,8 @@ import { and, eq, max } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { categories, completions, routineBlocks } from '@/db/schema';
 import type { RoutineBlock } from '@/db/schema';
-import { computeDuration } from '@/lib/validation';
+import { FREE_CATEGORY_NAMES, placementDuration, repackByOrder } from '@/lib/repack';
+import { computeDuration, timeToMinutes } from '@/lib/validation';
 
 export type BlockWithCategory = {
   id: number;
@@ -147,4 +148,34 @@ export function moveBlock(dayLabel: string, id: number, direction: 'up' | 'down'
   if (target < 0 || target >= ordered.length) return;
   [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
   reorderBlocks(ordered);
+}
+
+/**
+ * Applies a drag-reorder: stores the new order and recomputes each block's times
+ * (pure repack — rigids keep duration, free time absorbs slack, Sono pinned, no gaps).
+ */
+export function applyReorder(dayLabel: string, orderedIds: number[]): void {
+  const byId = new Map(getBlocksForDay(dayLabel).map((b) => [b.id, b]));
+  const input = orderedIds
+    .map((id) => byId.get(id))
+    .filter((b): b is NonNullable<typeof b> => b != null)
+    .map((b) => ({
+      id: b.id,
+      durationMin: b.durationMin,
+      startMin: timeToMinutes(b.start) ?? 0,
+      free: b.categoryName != null && FREE_CATEGORY_NAMES.includes(b.categoryName),
+      sleep: b.categoryName === 'Sono',
+    }));
+  const placeById = new Map(repackByOrder(input).map((p) => [p.id, p]));
+
+  db.transaction((tx) => {
+    orderedIds.forEach((id, index) => {
+      const p = placeById.get(id);
+      if (!p) return;
+      tx.update(routineBlocks)
+        .set({ sortOrder: index, start: p.start, end: p.end, durationMin: placementDuration(p.start, p.end) })
+        .where(eq(routineBlocks.id, id))
+        .run();
+    });
+  });
 }
