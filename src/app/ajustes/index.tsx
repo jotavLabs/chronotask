@@ -5,6 +5,7 @@ import type { Href } from 'expo-router';
 import type { NotifPrefs, NotifScope } from '@/lib/notifications';
 import { THEME_MODES } from '@/lib/theme';
 import { getLastBackupAt, getNotifPrefs, setNotifPrefs } from '@/repositories/settingsRepo';
+import { clearExampleData } from '@/repositories/templatesRepo';
 import { applyBackup, exportBackup, pickBackup } from '@/services/backupService';
 import { requestNotifPermission, rescheduleNotifications } from '@/services/notificationService';
 import { useThemeStore } from '@/store/themeStore';
@@ -133,6 +134,24 @@ export default function AjustesScreen() {
     ]);
   }
 
+  function onClearExample() {
+    Alert.alert(
+      'Limpar dados de exemplo?',
+      'Apaga blocos da rotina, rotinas mensais, treinos e estudos deste aparelho. Categorias, feriados e preferências são mantidos. Não pode ser desfeito.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Limpar',
+          style: 'destructive',
+          onPress: () => {
+            clearExampleData();
+            Alert.alert('Pronto', 'Dados de exemplo removidos. Use "Trocar/redefinir ponto de partida" para começar a sua rotina.');
+          },
+        },
+      ],
+    );
+  }
+
   async function toggleEnabled(value: boolean) {
     if (!value) {
       update({ enabled: false });
@@ -209,6 +228,10 @@ export default function AjustesScreen() {
         <LinkRow href="/gerenciar" icon="🗂️" label="Gerenciar rotina e dados" />
         <LinkRow href="/gerenciar/categorias" icon="🎨" label="Categorias & prioridades" />
         <LinkRow href={'/ajustes/inicio' as Href} icon="🧩" label="Trocar/redefinir ponto de partida" />
+        <TouchableOpacity onPress={onClearExample} className="flex-row items-center px-4 py-3">
+          <Text className="text-base mr-3">🧹</Text>
+          <Text className="flex-1 text-sm text-red-500">Limpar dados de exemplo</Text>
+        </TouchableOpacity>
       </Card>
 
       <SectionTitle>Backup</SectionTitle>

@@ -1,7 +1,23 @@
 import { db } from '@/db/client';
-import { routineBlocks } from '@/db/schema';
+import { completions, exerciseLogs, exercises, monthlyRoutines, routineBlocks, trainingDays } from '@/db/schema';
 import { getTemplate } from '@/lib/templates';
 import { getOrCreateCategoryByName } from './categoriesRepo';
+
+/**
+ * Wipes routine/training/study content (blocks, monthly routines, training days,
+ * exercises, logs, completions). Keeps categories, holidays and settings. Used by
+ * "Limpar dados de exemplo" so the user starts clean without touching their setup.
+ */
+export function clearExampleData(): void {
+  db.transaction((tx) => {
+    tx.delete(exerciseLogs).run();
+    tx.delete(exercises).run();
+    tx.delete(trainingDays).run();
+    tx.delete(completions).run();
+    tx.delete(monthlyRoutines).run();
+    tx.delete(routineBlocks).run();
+  });
+}
 
 /**
  * Applies a routine template's blocks. With `replace`, the current routine is
