@@ -56,6 +56,17 @@ export function deleteCategory(id: number): void {
   db.update(categories).set({ deleted: 1 }).where(eq(categories.id, id)).run();
 }
 
+/** Returns the id of an active category by name, creating a plain one if absent. */
+export function getOrCreateCategoryByName(name: string): number {
+  const existing = db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(and(eq(categories.name, name), eq(categories.deleted, 0)))
+    .get();
+  if (existing) return existing.id;
+  return createCategory({ name, cutOrder: null, protected: 0, tieGroup: null, color: null, skipOnHoliday: 0 });
+}
+
 /** How many blocks/events/monthly routines reference this category. */
 export function countCategoryUsage(id: number): number {
   const b = db.select({ id: routineBlocks.id }).from(routineBlocks).where(and(eq(routineBlocks.categoryId, id), eq(routineBlocks.deleted, 0))).all().length;

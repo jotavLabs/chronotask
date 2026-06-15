@@ -208,6 +208,7 @@ export default function AjustesScreen() {
       <Card>
         <LinkRow href="/gerenciar" icon="🗂️" label="Gerenciar rotina e dados" />
         <LinkRow href="/gerenciar/categorias" icon="🎨" label="Categorias & prioridades" />
+        <LinkRow href={'/ajustes/inicio' as Href} icon="🧩" label="Trocar/redefinir ponto de partida" />
       </Card>
 
       <SectionTitle>Backup</SectionTitle>

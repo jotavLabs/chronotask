@@ -66,3 +66,13 @@ export function getLastBackupAt(): string | null {
 export function setLastBackupAt(iso: string): void {
   setSetting('last_backup_at', iso);
 }
+
+// ─── onboarding (start choice) ─────────────────────────────────────────────────
+
+export function getStartChoiceDone(): boolean {
+  return getSetting('start_choice_done') === '1';
+}
+
+export function setStartChoiceDone(done: boolean): void {
+  setSetting('start_choice_done', done ? '1' : '0');
+}
