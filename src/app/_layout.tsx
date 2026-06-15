@@ -7,7 +7,6 @@ import { db } from '@/db/client';
 import { backfillTopics } from '@/db/backfillTopics';
 import migrations from '@/db/migrations';
 import { runSeed } from '@/db/seed';
-import { seedTraining } from '@/db/seedTraining';
 import { configureNotifications, rescheduleNotifications } from '@/services/notificationService';
 import { useThemeStore } from '@/store/themeStore';
 
@@ -39,7 +38,6 @@ function MobileApp() {
       seeded.current = true;
       try {
         runSeed();
-        seedTraining();
         backfillTopics();
         useThemeStore.getState().init();
         configureNotifications();
