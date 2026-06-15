@@ -7,17 +7,15 @@ import { categories, holidays } from './schema';
 
 // ─── categories data ─────────────────────────────────────────────────────────
 
+// Lean, universal defaults — all editable in the categories CRUD.
+// Trabalho = most important/protected (sai em feriado); Tempo Livre = cut first.
 const CAT_DATA = [
-  { name: 'Trabalho', cutOrder: null, tieGroup: null, protected: 1, color: '#3B82F6' },
-  { name: 'Sono', cutOrder: 5, tieGroup: null, protected: 0, color: '#8B5CF6' },
-  { name: 'Rotina', cutOrder: 4, tieGroup: null, protected: 0, color: '#6B7280' },
-  { name: 'Alimentação', cutOrder: 3, tieGroup: null, protected: 0, color: '#F59E0B' },
-  { name: 'Treino', cutOrder: 2, tieGroup: 'treino_estudo', protected: 0, color: '#EF4444' },
-  { name: 'Estudo', cutOrder: 2, tieGroup: 'treino_estudo', protected: 0, color: '#10B981' },
-  { name: 'Cardio', cutOrder: 2, tieGroup: 'treino_estudo', protected: 0, color: '#F97316' },
-  { name: 'Mobilidade', cutOrder: 2, tieGroup: 'treino_estudo', protected: 0, color: '#EC4899' },
-  { name: 'Lazer', cutOrder: 1, tieGroup: null, protected: 0, color: '#06B6D4' },
-  { name: 'Leitura', cutOrder: 1, tieGroup: null, protected: 0, color: '#84CC16' },
+  { name: 'Trabalho', cutOrder: null, tieGroup: null, protected: 1, skipOnHoliday: 1, color: '#3B82F6' },
+  { name: 'Sono', cutOrder: 5, tieGroup: null, protected: 0, skipOnHoliday: 0, color: '#8B5CF6' },
+  { name: 'Alimentação', cutOrder: 4, tieGroup: null, protected: 0, skipOnHoliday: 0, color: '#F59E0B' },
+  { name: 'Higiene/Pessoal', cutOrder: 3, tieGroup: null, protected: 0, skipOnHoliday: 0, color: '#6B7280' },
+  { name: 'Estudo/Exercício', cutOrder: 2, tieGroup: null, protected: 0, skipOnHoliday: 0, color: '#10B981' },
+  { name: 'Tempo Livre', cutOrder: 1, tieGroup: null, protected: 0, skipOnHoliday: 0, color: '#06B6D4' },
 ];
 
 // ─── holidays data (BR 2026, editable) ─────────────────────────────────────────

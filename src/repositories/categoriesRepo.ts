@@ -18,6 +18,7 @@ export type CategoryInput = {
   protected: number;
   tieGroup: string | null;
   color: string | null;
+  skipOnHoliday: number;
 };
 
 export function createCategory(input: CategoryInput): number {
@@ -29,6 +30,7 @@ export function createCategory(input: CategoryInput): number {
       protected: input.protected,
       tieGroup: input.tieGroup?.trim() || null,
       color: input.color,
+      skipOnHoliday: input.skipOnHoliday,
     })
     .returning({ id: categories.id })
     .get();
@@ -44,6 +46,7 @@ export function updateCategory(id: number, input: CategoryInput): void {
       protected: input.protected,
       tieGroup: input.tieGroup?.trim() || null,
       color: input.color,
+      skipOnHoliday: input.skipOnHoliday,
     })
     .where(eq(categories.id, id))
     .run();
