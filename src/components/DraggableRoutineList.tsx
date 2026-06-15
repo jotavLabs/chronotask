@@ -3,7 +3,7 @@ import { Animated, PanResponder, ScrollView, Text, TouchableOpacity, View } from
 import { formatDuration } from '@/lib/validation';
 import type { BlockWithCategory } from '@/repositories/blocksRepo';
 
-const ROW_H = 60;
+const ROW_H = 64;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const move = <T,>(arr: T[], from: number, to: number): T[] => {
   const next = arr.slice();
@@ -15,7 +15,7 @@ const move = <T,>(arr: T[], from: number, to: number): T[] => {
 type RowCallbacks = {
   onStart: (id: number) => void;
   onMove: (dy: number) => void;
-  onEnd: () => void;
+  onEnd: (dy: number) => void;
 };
 
 function Row({
@@ -36,11 +36,11 @@ function Row({
   const responder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true, // beat the ScrollView to the gesture
       onPanResponderGrant: () => cb.onStart(item.id),
       onPanResponderMove: (_e, g) => cb.onMove(g.dy),
-      onPanResponderRelease: () => cb.onEnd(),
-      onPanResponderTerminate: () => cb.onEnd(),
+      onPanResponderRelease: (_e, g) => cb.onEnd(g.dy),
+      onPanResponderTerminate: (_e, g) => cb.onEnd(g.dy),
     }),
   ).current;
 
@@ -49,18 +49,18 @@ function Row({
     <Animated.View
       style={{
         height: ROW_H,
-        transform: [{ translateY: dragging ? panY : 0 }],
+        transform: dragging ? [{ translateY: panY }, { scale: 1.03 }] : [],
         zIndex: dragging ? 10 : 0,
-        elevation: dragging ? 10 : 0,
-        opacity: dragging ? 0.95 : 1,
+        elevation: dragging ? 8 : 0,
+        opacity: dragging ? 0.97 : 1,
       }}
     >
       <View
         className="flex-row items-center bg-white dark:bg-gray-800 rounded-xl px-1 mx-3"
         style={{ height: ROW_H - 8, marginTop: 4, borderLeftWidth: 3, borderLeftColor: color }}
       >
-        <View {...responder.panHandlers} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} className="px-2 py-2">
-          <Text className="text-lg text-gray-300 dark:text-gray-500">⠿</Text>
+        <View {...responder.panHandlers} hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }} className="px-2 py-3">
+          <Text className="text-xl text-gray-300 dark:text-gray-500">⠿</Text>
         </View>
 
         <TouchableOpacity className="flex-1 px-1" onPress={onPress}>
@@ -82,8 +82,9 @@ function Row({
 }
 
 /**
- * Long-press the ⠿ handle and drag to reorder. Rows shuffle live (fixed height);
- * on release the new id order is reported. The screen persists + recomputes times.
+ * Drag a row by its ⠿ handle to reorder. The dragged row lifts and follows the
+ * finger (pure Animated — no re-render mid-gesture, so it stays smooth); on release
+ * the target slot is computed and the new id order is reported once.
  */
 export function DraggableRoutineList({
   items,
@@ -99,35 +100,33 @@ export function DraggableRoutineList({
   const [order, setOrder] = useState<BlockWithCategory[]>(items);
   const [dragId, setDragId] = useState<number | null>(null);
   const panY = useRef(new Animated.Value(0)).current;
-  const meta = useRef({ startIndex: 0, dragIndex: 0 }).current;
+  const meta = useRef({ startIndex: 0 });
   const orderRef = useRef(order);
   orderRef.current = order;
 
   useEffect(() => {
-    if (dragId == null) setOrder(items); // don't clobber mid-drag
+    if (dragId == null) setOrder(items); // adopt external updates only when idle
   }, [items, dragId]);
 
   const cb: RowCallbacks = {
     onStart(id) {
-      const idx = orderRef.current.findIndex((b) => b.id === id);
-      meta.startIndex = idx;
-      meta.dragIndex = idx;
-      setDragId(id);
+      meta.current.startIndex = orderRef.current.findIndex((b) => b.id === id);
       panY.setValue(0);
+      setDragId(id);
     },
     onMove(dy) {
-      const target = clamp(meta.startIndex + Math.round(dy / ROW_H), 0, orderRef.current.length - 1);
-      if (target !== meta.dragIndex) {
-        setOrder(move(orderRef.current, meta.dragIndex, target));
-        meta.dragIndex = target;
-      }
-      panY.setValue(dy - (meta.dragIndex - meta.startIndex) * ROW_H);
+      panY.setValue(dy);
     },
-    onEnd() {
-      if (dragId == null) return;
-      onReorder(orderRef.current.map((b) => b.id));
-      setDragId(null);
+    onEnd(dy) {
+      const { startIndex } = meta.current;
+      const target = clamp(startIndex + Math.round(dy / ROW_H), 0, orderRef.current.length - 1);
+      if (target !== startIndex) {
+        const next = move(orderRef.current, startIndex, target);
+        setOrder(next);
+        onReorder(next.map((b) => b.id));
+      }
       panY.setValue(0);
+      setDragId(null);
     },
   };
 
