@@ -17,7 +17,7 @@ eas build --profile development --platform android
 
 Web não é suportado (expo-sqlite exige SharedArrayBuffer/headers COEP-COOP); mostra tela informativa.
 
-No primeiro launch o banco é criado e populado automaticamente com toda a rotina seed.
+No primeiro launch o banco é criado e populado só com a estrutura (categorias padrão + feriados); a rotina vem da **escolha de início** (Sprint 8) — nenhuma rotina pessoal é embutida.
 
 ### Pré-requisitos
 
@@ -139,7 +139,7 @@ src/
 ## Schema do banco
 
 ```
-categories      — nome, cut_order, tie_group, protected, color
+categories      — nome, cut_order, tie_group, protected, color, skip_on_holiday [S8]
 routine_blocks  — day_label, start, end, duration_min, activity, category_id, note, sort_order, topic [S5]
 monthly_routines — name, window_start/end_day, duration_min, scheduled_date, last_done
 events          — date, start, end, title, category_id, duration_min, priority
@@ -157,11 +157,13 @@ Para adicionar Sprint N: acrescente `{ idx: N, ... }` no journal e `m000N: sql` 
 ### Lógica de resolução de dia
 
 ```
-holiday DB → 'Feriado'
-sábado     → 'Sab'
-domingo    → 'Dom'
-seg–sex    → 'Seg'|'Ter'|'Qua'|'Qui'|'Sex'
+sábado  → 'Sab'
+domingo → 'Dom'
+seg–sex → 'Seg'|'Ter'|'Qua'|'Qui'|'Sex'
 ```
+
+Feriado **não** é mais um label de dia: usa-se a rotina do dia da semana e o motor
+aplica a regra `skip_on_holiday` (ver Sprint 8).
 
 ---
 
@@ -272,7 +274,26 @@ Exemplos (tempo livre 17:30–18:30): compromisso 17:30–18:00 → folga vira 1
 
 A anon key é pública por design; a segurança vem do **RLS** (cada usuário só lê/grava as próprias linhas). Sem `.env`, a tela mostra "Sincronização não configurada" e o app segue 100% local.
 
-**S8:** módulo financeiro.
+**Próximo:** módulo financeiro.
+
+## Sprint 8 — templates/padrões editáveis + drag-and-drop
+
+Desacopla a rotina pessoal do app: nada de rotina embutida; o início vem de uma escolha + templates editáveis. E reordenação dos blocos por arrastar, com recálculo de horários.
+
+### Templates e padrões (Parte A)
+- **Sem rotina pessoal no seed.** `db/seed` insere só **categorias padrão** + **feriados BR**. Nenhum bloco/treino embutido.
+- **Categorias padrão enxutas e editáveis** (`Trabalho`, `Sono`, `Alimentação`, `Higiene/Pessoal`, `Estudo/Exercício`, `Tempo Livre`) com `cut_order`, `protected`, `tie_group`, `color` e a flag **`skip_on_holiday`** — tudo no CRUD de categorias.
+- **Feriado é uma regra, não um dia.** O motor parte da rotina do dia da semana e remove os blocos das categorias com `skip_on_holiday = 1` (padrão: Trabalho); o tempo livre absorve o espaço. A lista de feriados continua editável. (`buildAdaptedDay({ isHoliday })`).
+- **Templates como DADOS** em `lib/templates.ts` (não código acoplado): `Vazio` (sem blocos) e `Genérica` (dia útil simples + fins de semana livres). **Como adicionar um template:** acrescente uma entrada em `TEMPLATES` com seus `blocks` (`{ dayLabel, start, end, durationMin, activity, catName, sortOrder }`); ele aparece automaticamente na escolha de início e em Ajustes. `templatesRepo.applyTemplate(id, { replace })` resolve categorias e insere em transação.
+- **Escolha de início:** no 1º acesso, tela "Como quer começar?" (Vazio / Rotina genérica), gravada na flag `start_choice_done`. Em Ajustes → **Trocar/redefinir ponto de partida** dá para reaplicar um template (substitui a rotina, com confirmação).
+
+### Drag-and-drop + recálculo (Parte B)
+- Em **Gerenciar → Blocos**, arraste pela alça `⠿` para reordenar. Ao soltar, os horários são **recalculados**.
+- `lib/repack.ts` (puro, testado): re-empilha as durações na nova ordem dentro da janela do dia (barreiras `winStart`/`winEnd` derivadas do **Sono**, ex.: 07:00–22:30). Blocos rígidos mantêm a duração; **tempo livre** (Tempo Livre/Lazer/Leitura) é elástico e absorve a folga — **sem gaps**; **Sono** fica fixo no fim. Mesmo modelo de barreiras/folga do reflow da adaptação.
+- `blocksRepo.applyReorder(dayLabel, orderedIds)` persiste a nova ordem (`sort_order`) e os horários em transação.
+- **Biblioteca:** drag feito com `PanResponder` (core RN) — `react-native-gesture-handler`/`reanimated 4` estão no projeto, mas ainda não há lib de DnD estável para reanimated 4, então optei por um drag próprio (sem dependência nova).
+
+**Próximo:** módulo financeiro.
 
 ## Mapa de sprints
 
@@ -285,4 +306,5 @@ A anon key é pública por design; a segurança vem do **RLS** (cada usuário s�
 | 5 | Estatísticas + Chat de comandos |
 | 6 | Lembretes (notificações locais) + backup/exportação JSON |
 | 7 | Sync multi-dispositivo (Supabase) + Google Agenda |
-| 8 | Módulo financeiro |
+| 8 | Templates/padrões editáveis + drag-and-drop dos blocos |
+| 9 | Módulo financeiro |
