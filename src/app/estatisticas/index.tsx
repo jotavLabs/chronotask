@@ -22,14 +22,9 @@ import {
   getScheduledCounts,
 } from '@/repositories/statsRepo';
 
-const TOPIC_HEX: Record<string, string> = {
-  Inglês: '#10B981',
-  Matemática: '#3B82F6',
-  Redação: '#F59E0B',
-  'PM/CAPM': '#8B5CF6',
-  'Cloud/AWS': '#06B6D4',
-  'Claude/IA': '#EC4899',
-};
+// Per-topic colors are user/domain-specific; none ship by default. The chart
+// falls back to a neutral accent for any topic.
+const TOPIC_HEX: Record<string, string> = {};
 
 type Data = {
   topics: TopicStat[];

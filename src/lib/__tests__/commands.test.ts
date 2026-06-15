@@ -61,16 +61,12 @@ describe('parseCommand — feriados', () => {
 });
 
 describe('parseCommand — /tempo', () => {
-  it('resolves accentless topic (ingles → Inglês) and formats time', () => {
-    expect(parseCommand('/tempo ingles', deps).lines[0]).toBe('Inglês neste mês: 2h (4 sessões).');
-  });
-
-  it('is case/accent insensitive', () => {
-    expect(parseCommand('/TEMPO Inglês', deps).lines[0]).toBe('Inglês neste mês: 2h (4 sessões).');
-  });
-
-  it('asks for a topic when missing, and reports unknown topics', () => {
+  it('asks for a topic when missing', () => {
     expect(parseCommand('/tempo', deps).lines[0]).toMatch(/Informe o tema/);
+  });
+
+  it('reports unknown topics (no topic rules ship by default)', () => {
+    expect(parseCommand('/tempo ingles', deps).lines[0]).toMatch(/não encontrado/);
     expect(parseCommand('/tempo quimica', deps).lines[0]).toMatch(/não encontrado/);
   });
 });
