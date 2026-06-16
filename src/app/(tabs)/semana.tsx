@@ -5,8 +5,11 @@ import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DayList } from '@/components/DayList';
+import { DraggableList } from '@/components/DraggableList';
 import { resolveDayLabel, getWeekDates, shortWeekdayPt, toIsoDate } from '@/lib/dayResolver';
+import { formatDuration } from '@/lib/validation';
 import { getDatesWithExtras } from '@/repositories/adaptedDayRepo';
+import { applyReorder } from '@/repositories/blocksRepo';
 import { buildHolidayDateSet } from '@/repositories/categoriesRepo';
 import { useRoutineStore } from '@/store/routineStore';
 
@@ -22,6 +25,13 @@ export default function SemanaScreen() {
 
   const { days, dates, loadDay, loadDoneForDate, toggleBlock } = useRoutineStore();
   const [extras, setExtras] = useState<Set<string>>(new Set());
+  const [reordering, setReordering] = useState(false);
+
+  function onReorderDay(ids: number[]) {
+    applyReorder(selectedLabel, ids);
+    loadDay(selectedLabel);
+    setExtras(getDatesWithExtras(weekDates.map(toIsoDate)));
+  }
 
   // Load blocks for all 7 days; refetch on focus so edits show up here.
   useFocusEffect(
@@ -98,27 +108,60 @@ export default function SemanaScreen() {
             <Text className="text-xs text-yellow-600 dark:text-yellow-400 mt-0.5">Feriado</Text>
           )}
         </View>
-        {(extras.has(selectedIso) || selectedIsHoliday) && (
-          <TouchableOpacity
-            onPress={() => router.navigate({ pathname: '/', params: { date: selectedIso } })}
-            className="px-3 py-1.5 rounded-full bg-orange-100 dark:bg-orange-900/40"
-          >
-            <Text className="text-xs font-semibold text-orange-700 dark:text-orange-300">
-              Ver dia adaptado →
-            </Text>
-          </TouchableOpacity>
-        )}
+        <View className="flex-row items-center">
+          {blocks.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setReordering((r) => !r)}
+              className={`px-3 py-1.5 rounded-full mr-2 ${reordering ? 'bg-blue-600' : 'bg-gray-100 dark:bg-gray-800'}`}
+            >
+              <Text className={`text-xs font-semibold ${reordering ? 'text-white' : 'text-gray-700 dark:text-gray-200'}`}>
+                {reordering ? '✓ Concluir' : '↕ Reordenar'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {(extras.has(selectedIso) || selectedIsHoliday) && !reordering && (
+            <TouchableOpacity
+              onPress={() => router.navigate({ pathname: '/', params: { date: selectedIso } })}
+              className="px-3 py-1.5 rounded-full bg-orange-100 dark:bg-orange-900/40"
+            >
+              <Text className="text-xs font-semibold text-orange-700 dark:text-orange-300">Ver dia adaptado →</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      <DayList
-        isoDate={selectedIso}
-        blocks={blocks}
-        doneIds={doneIds}
-        onToggle={(blockId) => toggleBlock(selectedIso, blockId)}
-        onPressBlock={(id) =>
-          router.push({ pathname: '/gerenciar/bloco-form', params: { id: String(id) } })
-        }
-      />
+      {reordering ? (
+        <DraggableList
+          items={blocks}
+          getId={(b) => b.id}
+          getAccent={(b) => b.categoryColor ?? '#6B7280'}
+          onReorder={onReorderDay}
+          renderContent={(b) => (
+            <TouchableOpacity
+              className="flex-1 px-1"
+              onPress={() => router.push({ pathname: '/gerenciar/bloco-form', params: { id: String(b.id) } })}
+            >
+              <Text className="text-sm font-medium text-gray-800 dark:text-gray-100" numberOfLines={1}>
+                {b.activity}
+              </Text>
+              <Text className="text-xs text-gray-400 dark:text-gray-500 mt-0.5" numberOfLines={1}>
+                {b.start}–{b.end} · {formatDuration(b.durationMin)}
+                {b.categoryName ? ` · ${b.categoryName}` : ''}
+              </Text>
+            </TouchableOpacity>
+          )}
+        />
+      ) : (
+        <DayList
+          isoDate={selectedIso}
+          blocks={blocks}
+          doneIds={doneIds}
+          onToggle={(blockId) => toggleBlock(selectedIso, blockId)}
+          onPressBlock={(id) =>
+            router.push({ pathname: '/gerenciar/bloco-form', params: { id: String(id) } })
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
