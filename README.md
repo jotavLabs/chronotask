@@ -291,7 +291,14 @@ Desacopla a rotina pessoal do app: nada de rotina embutida; o início vem de uma
 - Em **Gerenciar → Blocos**, arraste pela alça `⠿` para reordenar. Ao soltar, os horários são **recalculados**.
 - `lib/repack.ts` (puro, testado): re-empilha as durações na nova ordem dentro da janela do dia (barreiras `winStart`/`winEnd` derivadas do **Sono**, ex.: 07:00–22:30). Blocos rígidos mantêm a duração; **tempo livre** (Tempo Livre/Lazer/Leitura) é elástico e absorve a folga — **sem gaps**; **Sono** fica fixo no fim. Mesmo modelo de barreiras/folga do reflow da adaptação.
 - `blocksRepo.applyReorder(dayLabel, orderedIds)` persiste a nova ordem (`sort_order`) e os horários em transação.
-- **Biblioteca:** drag feito com `PanResponder` (core RN) — `react-native-gesture-handler`/`reanimated 4` estão no projeto, mas ainda não há lib de DnD estável para reanimated 4, então optei por um drag próprio (sem dependência nova).
+- **Biblioteca:** drag feito com `PanResponder` (core RN) — `react-native-gesture-handler`/`reanimated 4` estão no projeto, mas ainda não há lib de DnD estável para reanimated 4, então optei por um drag próprio (sem dependência nova). `components/DraggableList` é genérico (lift-and-drop com `Animated`, sem re-render no gesto): a linha sobe, segue o dedo e a nova ordem é aplicada ao soltar.
+
+### Refinamentos (Parte C)
+- **Drag em todas as telas de rotina:** além de Gerenciar → Blocos, a **Semana** tem um modo "Reordenar" (lista do dia arrastável) e o **Hoje** tem "Reordenar" **só em dia limpo** (`verdict OK`, sem compromisso/corte), operando sobre os blocos-base. Tudo via `DraggableList` + `applyReorder`.
+- **CRUD de treino:** Gerenciar → **Treinos** — criar/editar/excluir dias de treino e exercícios (nome, tipo, séries, reps, descanso, escada, nota), com arrastar para reordenar. Repo: `trainingRepo` (`create/update/delete` de dias e exercícios + `reorderExercises`).
+- **CRUD de estudo:** estudo é bloco da rotina (categoria `Estudo/Exercício`); a aba **Estudos** ganhou adicionar (FAB), editar e excluir, reusando `bloco-form`/`deleteBlock`.
+- **Sem dados pessoais no código:** removidos o seed de treino do piloto (`seedTraining`) e as matérias de estudo (`topics`/`TOPIC_HEX` agora vazios). Instalação nova não herda nada.
+- **Limpar dados de exemplo:** Ajustes → Rotina apaga blocos/mensais/treinos/estudos/conclusões do aparelho, mantendo categorias, feriados e preferências.
 
 **Próximo:** módulo financeiro.
 
