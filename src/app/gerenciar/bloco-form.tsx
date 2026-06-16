@@ -20,7 +20,7 @@ const INPUT =
   'border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white bg-white dark:bg-gray-800';
 
 export default function BlocoForm() {
-  const params = useLocalSearchParams<{ id?: string; dayLabel?: string }>();
+  const params = useLocalSearchParams<{ id?: string; dayLabel?: string; cat?: string }>();
   const blockId = params.id ? Number(params.id) : null;
   const editing = blockId != null;
 
@@ -47,6 +47,13 @@ export default function BlocoForm() {
       setNote(b.note ?? '');
     }
   }, [blockId]);
+
+  // preset category for new blocks created from a specific tab (e.g. Estudos)
+  useEffect(() => {
+    if (blockId != null || !params.cat) return;
+    const c = categories.find((x) => x.name === params.cat);
+    if (c) setCategoryId(c.id);
+  }, [blockId, params.cat, categories]);
 
   const duration = computeDuration(start, end);
   const sMin = timeToMinutes(start);

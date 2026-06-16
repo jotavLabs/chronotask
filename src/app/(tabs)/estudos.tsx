@@ -1,18 +1,20 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import type { Href } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { StudyNoteCard } from '@/components/StudyNoteCard';
 import { getWeekDates, resolveDayLabel, shortWeekdayPt, toIsoDate } from '@/lib/dayResolver';
 import { categoryColorFor } from '@/lib/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { getBlocksForDayByCategory } from '@/repositories/blocksRepo';
+import { deleteBlock, getBlocksForDayByCategory } from '@/repositories/blocksRepo';
 import type { BlockWithCategory } from '@/repositories/blocksRepo';
 import { getDoneBlockIds, setBlockDone } from '@/repositories/completionsRepo';
 
-const CAT = 'Estudo';
+const CAT = 'Estudo/Exercício';
 
 function Segmented({ tab, onChange }: { tab: 'hoje' | 'semana'; onChange: (t: 'hoje' | 'semana') => void }) {
   return (
@@ -42,14 +44,14 @@ export default function EstudosScreen() {
 
   const [tab, setTab] = useState<'hoje' | 'semana'>('hoje');
   const [doneIds, setDoneIds] = useState<Set<number>>(new Set());
+  const [todayBlocks, setTodayBlocks] = useState<BlockWithCategory[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<number | null>(null);
 
-  const todayBlocks = useMemo(() => getBlocksForDayByCategory(dayLabel, CAT), [dayLabel]);
-
-  useFocusEffect(
-    useCallback(() => {
-      setDoneIds(getDoneBlockIds(iso));
-    }, [iso]),
-  );
+  const reload = useCallback(() => {
+    setDoneIds(getDoneBlockIds(iso));
+    setTodayBlocks(getBlocksForDayByCategory(dayLabel, CAT));
+  }, [iso, dayLabel]);
+  useFocusEffect(reload);
 
   function toggle(blockId: number) {
     const next = !doneIds.has(blockId);
@@ -93,6 +95,8 @@ export default function EstudosScreen() {
                 done={doneIds.has(b.id)}
                 onToggle={() => toggle(b.id)}
                 color={color}
+                onEditBlock={() => router.push(`/gerenciar/bloco-form?id=${b.id}` as Href)}
+                onDeleteBlock={() => setPendingDelete(b.id)}
               />
             ))
           )}
@@ -125,6 +129,30 @@ export default function EstudosScreen() {
           ))}
         </ScrollView>
       )}
+
+      {tab === 'hoje' && (
+        <TouchableOpacity
+          onPress={() => router.push(`/gerenciar/bloco-form?dayLabel=${dayLabel}&cat=${encodeURIComponent(CAT)}` as Href)}
+          className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-blue-600 items-center justify-center shadow-lg"
+          style={{ elevation: 4 }}
+        >
+          <Text className="text-white text-3xl -mt-0.5">+</Text>
+        </TouchableOpacity>
+      )}
+
+      <ConfirmDialog
+        visible={pendingDelete != null}
+        title="Excluir bloco de estudo?"
+        message="As marcações de conclusão deste bloco também serão removidas."
+        confirmLabel="Excluir"
+        destructive
+        onConfirm={() => {
+          if (pendingDelete != null) deleteBlock(pendingDelete);
+          setPendingDelete(null);
+          reload();
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </SafeAreaView>
   );
 }

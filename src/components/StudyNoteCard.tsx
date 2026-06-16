@@ -10,12 +10,14 @@ interface Props {
   done: boolean;
   onToggle: () => void;
   color: string;
+  onEditBlock?: () => void;
+  onDeleteBlock?: () => void;
 }
 
 const INPUT =
   'border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800';
 
-export function StudyNoteCard({ block, date, done, onToggle, color }: Props) {
+export function StudyNoteCard({ block, date, done, onToggle, color, onEditBlock, onDeleteBlock }: Props) {
   const [note, setNote] = useState('');
   const [saved, setSaved] = useState('');
   const [editing, setEditing] = useState(false);
@@ -48,6 +50,16 @@ export function StudyNoteCard({ block, date, done, onToggle, color }: Props) {
             {block.note ? ` · ${block.note}` : ''}
           </Text>
         </View>
+        {onEditBlock && (
+          <TouchableOpacity onPress={onEditBlock} hitSlop={8} className="px-1.5">
+            <Text className="text-sm">✏️</Text>
+          </TouchableOpacity>
+        )}
+        {onDeleteBlock && (
+          <TouchableOpacity onPress={onDeleteBlock} hitSlop={8} className="px-1.5 mr-1">
+            <Text className="text-sm">🗑️</Text>
+          </TouchableOpacity>
+        )}
         <CheckBox checked={done} onToggle={onToggle} color={color} />
       </View>
 
