@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, max } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { exerciseLogs, exercises, trainingDays } from '@/db/schema';
 import type { Exercise, ExerciseLog, TrainingDay } from '@/db/schema';
@@ -9,6 +9,10 @@ export function getTrainingDays(): TrainingDay[] {
   return db.select().from(trainingDays).where(eq(trainingDays.deleted, 0)).orderBy(asc(trainingDays.id)).all();
 }
 
+export function getTrainingDayById(id: number): TrainingDay | undefined {
+  return db.select().from(trainingDays).where(and(eq(trainingDays.id, id), eq(trainingDays.deleted, 0))).get();
+}
+
 export function getExercisesForDay(trainingDayId: number): Exercise[] {
   return db
     .select()
@@ -16,6 +20,107 @@ export function getExercisesForDay(trainingDayId: number): Exercise[] {
     .where(and(eq(exercises.trainingDayId, trainingDayId), eq(exercises.deleted, 0)))
     .orderBy(asc(exercises.sortOrder))
     .all();
+}
+
+export function getExerciseById(id: number): Exercise | undefined {
+  return db.select().from(exercises).where(and(eq(exercises.id, id), eq(exercises.deleted, 0))).get();
+}
+
+// ─── CRUD: training days ───────────────────────────────────────────────────────
+
+export type TrainingDayInput = { label: string; weekday: string };
+
+export function createTrainingDay(input: TrainingDayInput): number {
+  const row = db
+    .insert(trainingDays)
+    .values({ label: input.label.trim(), weekday: input.weekday.trim() })
+    .returning({ id: trainingDays.id })
+    .get();
+  return row!.id;
+}
+
+export function updateTrainingDay(id: number, input: TrainingDayInput): void {
+  db.update(trainingDays)
+    .set({ label: input.label.trim(), weekday: input.weekday.trim() })
+    .where(eq(trainingDays.id, id))
+    .run();
+}
+
+/** Soft-deletes a training day and its exercises. */
+export function deleteTrainingDay(id: number): void {
+  db.transaction((tx) => {
+    tx.update(exercises).set({ deleted: 1 }).where(eq(exercises.trainingDayId, id)).run();
+    tx.update(trainingDays).set({ deleted: 1 }).where(eq(trainingDays.id, id)).run();
+  });
+}
+
+// ─── CRUD: exercises ───────────────────────────────────────────────────────────
+
+export type ExerciseInput = {
+  trainingDayId: number;
+  name: string;
+  type: string | null;
+  sets: string | null;
+  reps: string | null;
+  rest: string | null;
+  ladder: string | null;
+  note: string | null;
+};
+
+function nextExerciseSort(trainingDayId: number): number {
+  const row = db
+    .select({ value: max(exercises.sortOrder) })
+    .from(exercises)
+    .where(and(eq(exercises.trainingDayId, trainingDayId), eq(exercises.deleted, 0)))
+    .get();
+  return (row?.value ?? -1) + 1;
+}
+
+export function createExercise(input: ExerciseInput): number {
+  const row = db
+    .insert(exercises)
+    .values({
+      trainingDayId: input.trainingDayId,
+      name: input.name.trim(),
+      type: input.type?.trim() || null,
+      sets: input.sets?.trim() || null,
+      reps: input.reps?.trim() || null,
+      rest: input.rest?.trim() || null,
+      ladder: input.ladder?.trim() || null,
+      note: input.note?.trim() || null,
+      sortOrder: nextExerciseSort(input.trainingDayId),
+    })
+    .returning({ id: exercises.id })
+    .get();
+  return row!.id;
+}
+
+export function updateExercise(id: number, input: ExerciseInput): void {
+  db.update(exercises)
+    .set({
+      name: input.name.trim(),
+      type: input.type?.trim() || null,
+      sets: input.sets?.trim() || null,
+      reps: input.reps?.trim() || null,
+      rest: input.rest?.trim() || null,
+      ladder: input.ladder?.trim() || null,
+      note: input.note?.trim() || null,
+    })
+    .where(eq(exercises.id, id))
+    .run();
+}
+
+export function deleteExercise(id: number): void {
+  db.update(exercises).set({ deleted: 1 }).where(eq(exercises.id, id)).run();
+}
+
+/** Rewrites sort_order to match the given id order (0..n). */
+export function reorderExercises(orderedIds: number[]): void {
+  db.transaction((tx) => {
+    orderedIds.forEach((id, index) => {
+      tx.update(exercises).set({ sortOrder: index }).where(eq(exercises.id, id)).run();
+    });
+  });
 }
 
 export function getAllTrainingWithExercises(): TrainingWithExercises[] {

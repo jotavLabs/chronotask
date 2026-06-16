@@ -3,9 +3,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DayPicker } from '@/components/DayPicker';
-import { DraggableRoutineList } from '@/components/DraggableRoutineList';
+import { DraggableList } from '@/components/DraggableList';
 import { resolveDayLabel } from '@/lib/dayResolver';
 import type { DayLabel } from '@/lib/dayResolver';
+import { formatDuration } from '@/lib/validation';
 import { applyReorder, deleteBlock, getBlocksForDay } from '@/repositories/blocksRepo';
 import type { BlockWithCategory } from '@/repositories/blocksRepo';
 
@@ -47,11 +48,30 @@ export default function BlocosScreen() {
           <Text className="text-[11px] text-gray-400 dark:text-gray-500 px-5 pt-1 pb-1">
             Arraste ⠿ para reordenar — os horários se recalculam sozinhos.
           </Text>
-          <DraggableRoutineList
+          <DraggableList
             items={blocks}
+            getId={(b) => b.id}
+            getAccent={(b) => b.categoryColor ?? '#6B7280'}
             onReorder={onReorder}
-            onPressItem={(id) => router.push({ pathname: '/gerenciar/bloco-form', params: { id: String(id) } })}
-            onDeleteItem={(id) => setPendingDelete(id)}
+            renderContent={(b) => (
+              <View className="flex-row items-center">
+                <TouchableOpacity
+                  className="flex-1 px-1"
+                  onPress={() => router.push({ pathname: '/gerenciar/bloco-form', params: { id: String(b.id) } })}
+                >
+                  <Text className="text-sm font-medium text-gray-800 dark:text-gray-100" numberOfLines={1}>
+                    {b.activity}
+                  </Text>
+                  <Text className="text-xs text-gray-400 dark:text-gray-500 mt-0.5" numberOfLines={1}>
+                    {b.start}–{b.end} · {formatDuration(b.durationMin)}
+                    {b.categoryName ? ` · ${b.categoryName}` : ''}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setPendingDelete(b.id)} hitSlop={8} className="px-2">
+                  <Text className="text-base">🗑️</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           />
         </>
       )}

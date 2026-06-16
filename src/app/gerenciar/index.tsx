@@ -29,6 +29,12 @@ const ENTRIES: Entry[] = [
     title: 'Categorias & prioridades',
     subtitle: 'Ordem de corte, protegidas e cores do motor',
   },
+  {
+    href: '/gerenciar/treinos' as Href,
+    icon: '💪',
+    title: 'Treinos',
+    subtitle: 'Dias de treino e exercícios (séries, reps, descanso)',
+  },
 ];
 
 export default function GerenciarHub() {
