@@ -25,6 +25,7 @@ export default function GerenciarLayout() {
       <Stack.Screen name="categoria-form" options={{ title: 'Categoria', presentation: 'modal' }} />
       <Stack.Screen name="modelos" options={{ title: 'Modelos de rotina' }} />
       <Stack.Screen name="modelo-form" options={{ title: 'Modelo', presentation: 'modal' }} />
+      <Stack.Screen name="importar" options={{ title: 'Importar por IA' }} />
       <Stack.Screen name="treinos" options={{ title: 'Treinos' }} />
       <Stack.Screen name="treino-dia-form" options={{ title: 'Dia de treino', presentation: 'modal' }} />
       <Stack.Screen name="exercicio-form" options={{ title: 'Exercício', presentation: 'modal' }} />
