@@ -10,9 +10,18 @@ const migrations = {
       { idx: 2, when: 2, tag: '0002_topic', breakpoints: true },
       { idx: 3, when: 3, tag: '0003_sync', breakpoints: true },
       { idx: 4, when: 4, tag: '0004_skip_holiday', breakpoints: true },
+      { idx: 5, when: 5, tag: '0005_models', breakpoints: true },
     ],
   },
   migrations: {
+    m0005: [
+      'CREATE TABLE IF NOT EXISTS `routine_models` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL, `name` text NOT NULL, `created_at` text, `source` text, `updated_at` text, `deleted` integer DEFAULT 0 NOT NULL);',
+      'ALTER TABLE `routine_blocks` ADD COLUMN `model_id` integer;',
+      "INSERT INTO `routine_models` (`name`, `created_at`, `source`, `updated_at`, `deleted`) VALUES ('Minha rotina', strftime('%Y-%m-%dT%H:%M:%fZ','now'), 'manual', strftime('%Y-%m-%dT%H:%M:%fZ','now'), 0);",
+      'UPDATE `routine_blocks` SET `model_id` = (SELECT `id` FROM `routine_models` ORDER BY `id` LIMIT 1) WHERE `model_id` IS NULL;',
+      "CREATE TRIGGER IF NOT EXISTS `routine_models_sync_ins` AFTER INSERT ON `routine_models` WHEN NEW.updated_at IS NULL BEGIN UPDATE `routine_models` SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE rowid = NEW.rowid; END;",
+      "CREATE TRIGGER IF NOT EXISTS `routine_models_sync_upd` AFTER UPDATE ON `routine_models` WHEN NEW.updated_at IS OLD.updated_at BEGIN UPDATE `routine_models` SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE rowid = NEW.rowid; END;",
+    ].join('\n--> statement-breakpoint\n'),
     m0004: 'ALTER TABLE `categories` ADD COLUMN `skip_on_holiday` integer DEFAULT 0 NOT NULL;',
     m0003: [
       'categories', 'routine_blocks', 'monthly_routines', 'events', 'holidays',

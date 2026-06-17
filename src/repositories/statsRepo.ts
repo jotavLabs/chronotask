@@ -4,6 +4,7 @@ import { categories, completions, exerciseLogs, exercises, routineBlocks } from 
 import { resolveDayLabel, toIsoDate } from '@/lib/dayResolver';
 import { TRACKABLE_CATEGORIES } from '@/lib/stats';
 import type { CompletedBlock } from '@/lib/stats';
+import { getEditingModelId } from './modelsRepo';
 
 /** Completed (done=1) routine blocks in [startIso, endIso], with topic/category. */
 export function getCompletedBlocks(startIso: string, endIso: string): CompletedBlock[] {
@@ -45,7 +46,7 @@ export function getScheduledCounts(
     })
     .from(routineBlocks)
     .leftJoin(categories, eq(routineBlocks.categoryId, categories.id))
-    .where(eq(routineBlocks.deleted, 0))
+    .where(and(eq(routineBlocks.modelId, getEditingModelId()), eq(routineBlocks.deleted, 0)))
     .all();
 
   const byDay = new Map<string, typeof all>();

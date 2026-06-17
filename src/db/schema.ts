@@ -18,8 +18,19 @@ export const categories = sqliteTable('categories', {
   ...syncCols,
 });
 
+// Saved routine models (S9). Each block belongs to a model; which model applies
+// on a date is decided by lib/scheduling (rotation/assignments).
+export const routineModels = sqliteTable('routine_models', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  createdAt: text('created_at'),
+  source: text('source'), // manual | template | import
+  ...syncCols,
+});
+
 export const routineBlocks = sqliteTable('routine_blocks', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  modelId: integer('model_id').references(() => routineModels.id),
   dayLabel: text('day_label').notNull(),
   start: text('start').notNull(),
   end: text('end').notNull(),
@@ -128,6 +139,7 @@ export const syncState = sqliteTable('sync_state', {
 });
 
 export type Category = typeof categories.$inferSelect;
+export type RoutineModel = typeof routineModels.$inferSelect;
 export type RoutineBlock = typeof routineBlocks.$inferSelect;
 export type MonthlyRoutine = typeof monthlyRoutines.$inferSelect;
 export type Event = typeof events.$inferSelect;

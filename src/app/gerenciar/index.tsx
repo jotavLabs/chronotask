@@ -6,10 +6,16 @@ type Entry = { href: Href; icon: string; title: string; subtitle: string };
 
 const ENTRIES: Entry[] = [
   {
+    href: '/gerenciar/modelos' as Href,
+    icon: '🗂️',
+    title: 'Modelos de rotina',
+    subtitle: 'Vários modelos nomeados; escolha qual editar',
+  },
+  {
     href: '/gerenciar/blocos',
     icon: '🗓️',
     title: 'Blocos da rotina',
-    subtitle: 'Criar, editar, reordenar blocos de cada dia',
+    subtitle: 'Criar, editar, reordenar blocos do modelo em edição',
   },
   {
     href: '/gerenciar/mensais',

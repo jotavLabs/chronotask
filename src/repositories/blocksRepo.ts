@@ -4,6 +4,7 @@ import { categories, completions, routineBlocks } from '@/db/schema';
 import type { RoutineBlock } from '@/db/schema';
 import { FREE_CATEGORY_NAMES, placementDuration, repackByOrder } from '@/lib/repack';
 import { computeDuration, timeToMinutes } from '@/lib/validation';
+import { getEditingModelId } from './modelsRepo';
 
 export type BlockWithCategory = {
   id: number;
@@ -30,7 +31,7 @@ export type BlockInput = {
   note?: string | null;
 };
 
-export function getBlocksForDay(dayLabel: string): BlockWithCategory[] {
+export function getBlocksForDay(dayLabel: string, modelId: number = getEditingModelId()): BlockWithCategory[] {
   const rows = db
     .select({
       id: routineBlocks.id,
@@ -48,7 +49,7 @@ export function getBlocksForDay(dayLabel: string): BlockWithCategory[] {
     })
     .from(routineBlocks)
     .leftJoin(categories, eq(routineBlocks.categoryId, categories.id))
-    .where(and(eq(routineBlocks.dayLabel, dayLabel), eq(routineBlocks.deleted, 0)))
+    .where(and(eq(routineBlocks.modelId, modelId), eq(routineBlocks.dayLabel, dayLabel), eq(routineBlocks.deleted, 0)))
     .orderBy(routineBlocks.sortOrder)
     .all();
 
@@ -64,24 +65,30 @@ export function getBlockById(id: number): RoutineBlock | undefined {
 }
 
 /** Blocks of a given day filtered by category name (e.g. 'Estudo'). */
-export function getBlocksForDayByCategory(dayLabel: string, categoryName: string): BlockWithCategory[] {
-  return getBlocksForDay(dayLabel).filter((b) => b.categoryName === categoryName);
+export function getBlocksForDayByCategory(
+  dayLabel: string,
+  categoryName: string,
+  modelId: number = getEditingModelId(),
+): BlockWithCategory[] {
+  return getBlocksForDay(dayLabel, modelId).filter((b) => b.categoryName === categoryName);
 }
 
-function nextSortOrder(dayLabel: string): number {
+function nextSortOrder(dayLabel: string, modelId: number): number {
   const row = db
     .select({ value: max(routineBlocks.sortOrder) })
     .from(routineBlocks)
-    .where(and(eq(routineBlocks.dayLabel, dayLabel), eq(routineBlocks.deleted, 0)))
+    .where(and(eq(routineBlocks.modelId, modelId), eq(routineBlocks.dayLabel, dayLabel), eq(routineBlocks.deleted, 0)))
     .get();
   return (row?.value ?? -1) + 1;
 }
 
 export function createBlock(input: BlockInput): number {
   const durationMin = computeDuration(input.start, input.end) ?? 0;
+  const modelId = getEditingModelId();
   const row = db
     .insert(routineBlocks)
     .values({
+      modelId,
       dayLabel: input.dayLabel,
       start: input.start,
       end: input.end,
@@ -89,7 +96,7 @@ export function createBlock(input: BlockInput): number {
       activity: input.activity.trim(),
       categoryId: input.categoryId,
       note: input.note?.trim() || null,
-      sortOrder: nextSortOrder(input.dayLabel),
+      sortOrder: nextSortOrder(input.dayLabel, modelId),
     })
     .returning({ id: routineBlocks.id })
     .get();
@@ -154,8 +161,8 @@ export function moveBlock(dayLabel: string, id: number, direction: 'up' | 'down'
  * Applies a drag-reorder: stores the new order and recomputes each block's times
  * (pure repack — rigids keep duration, free time absorbs slack, Sono pinned, no gaps).
  */
-export function applyReorder(dayLabel: string, orderedIds: number[]): void {
-  const byId = new Map(getBlocksForDay(dayLabel).map((b) => [b.id, b]));
+export function applyReorder(dayLabel: string, orderedIds: number[], modelId: number = getEditingModelId()): void {
+  const byId = new Map(getBlocksForDay(dayLabel, modelId).map((b) => [b.id, b]));
   const input = orderedIds
     .map((id) => byId.get(id))
     .filter((b): b is NonNullable<typeof b> => b != null)
