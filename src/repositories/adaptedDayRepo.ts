@@ -7,6 +7,7 @@ import { isHolidayDate, resolveDayLabel, toIsoDate } from '@/lib/dayResolver';
 import { getHolidayNamePure } from '@/lib/holidays';
 import { getBlocksForDay } from './blocksRepo';
 import { buildHolidayDateSet, buildHolidayMap, getAllCategories } from './categoriesRepo';
+import { getModelIdForDate } from './schedulingRepo';
 import { getEventsByDate } from './eventsRepo';
 import { getAllMonthly } from './monthlyRoutinesRepo';
 
@@ -16,8 +17,9 @@ export function loadAdaptedDay(date: Date): AdaptedDay {
   const dayLabel = resolveDayLabel(date);
   const isHoliday = isHolidayDate(date, holidaySet);
   const holidayName = isHoliday ? getHolidayNamePure(iso, buildHolidayMap()) : null;
+  const modelId = getModelIdForDate(date);
 
-  const blocks = getBlocksForDay(dayLabel).map((b) => ({
+  const blocks = getBlocksForDay(dayLabel, modelId).map((b) => ({
     id: b.id,
     activity: b.activity,
     start: b.start,

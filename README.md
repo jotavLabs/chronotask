@@ -302,6 +302,37 @@ Desacopla a rotina pessoal do app: nada de rotina embutida; o início vem de uma
 
 **Próximo:** módulo financeiro.
 
+## Sprint 9 — modelos de rotina, rotação e import por IA
+
+Deixa de existir "a rotina": agora há **modelos** nomeados; qual vale em cada data é decidido por **rotação/atribuição**; e dá para **importar** um modelo gerado por IA.
+
+### Modelos (Parte A)
+- `routine_models(id, name, created_at, source)`; `routine_blocks.model_id` (FK). A migration m0005 cria um modelo **"Minha rotina"** e migra os blocos atuais para ele.
+- `modelsRepo`: CRUD + duplicar; `getEditingModelId()` resolve/garante o **modelo em edição** (`editing_model_id` em settings). O `blocksRepo` é escopado por modelo (default = modelo em edição), então o editor/drag/CRUD operam no modelo selecionado.
+- Tela **Gerenciar → Modelos**: criar (vazio/genérico/duplicar/importar), renomear, duplicar, excluir, editar.
+
+### Import por IA (Parte B)
+- Fluxo: **copiar o prompt** (Gerenciar → Importar por IA) → colar numa IA → salvar a resposta como `.json`/`.txt` → **selecionar arquivo** → **preview** → cria um modelo (`source=import`).
+- `lib/routineImport.ts` (puro, testado): `buildImportPrompt` embute as **categorias atuais** e os dias `Seg…Dom`; `parseRoutineJson` limpa cercas ```` ```json ```` e vírgulas sobrando; `normalizeRoutine` converte aliases de dia ("sexta" → `Sex`), restringe `categoria` às existentes (desconhecida → padrão, com aviso), valida horários e **preenche lacunas com Tempo Livre**. JSON inválido → erro amigável.
+- Schema esperado:
+  ```json
+  {
+    "tipo": "rotina",
+    "nome": "Semana A",
+    "dias": { "Sex": [ {"inicio":"09:30","fim":"10:10","atividade":"Corrida","categoria":"Estudo/Exercício"} ], "Seg": [] }
+  }
+  ```
+
+### Rotação / resolução por data (Parte C)
+- `rotation(enabled, mode, period, anchor_date)` + `rotation_items(position, model_id)` + `week_assignments(period_start, model_id)` (m0006).
+- `lib/scheduling.ts` (puro, testado) — **`resolveModelForDate(date, cfg)`**: prioridade **atribuição explícita do período → loop → none**. No loop, `índice = ((períodos desde a âncora) mod n)`, com período **semanal** ou **mensal**. `schedulingRepo.getModelIdForDate(date)` resolve e cai para **último modelo usado → modelo em edição** quando não há definição. Hoje/Semana/Estudos/adaptação puxam o modelo por aí.
+- Tela **Gerenciar → Sequência/Rotação**: ligar/desligar, período, âncora ("começar agora"), **loop arrastável** de modelos, e **atribuição** por período (sobrepõe o loop).
+
+### Aviso de período (Parte D)
+- Ao abrir o app, se a resolução do período atual for **none** (sem loop e sem atribuição) e houver ≥2 modelos, aparece **"Qual rotina usar nesta semana/mês?"** listando os modelos. A escolha vira uma `week_assignment`. "Decidir depois" mantém o fallback (último modelo usado); o aviso volta no próximo launch enquanto não respondido, e reaparece na virada do período.
+
+**Próximo:** módulo financeiro.
+
 ## Mapa de sprints
 
 | Sprint | Foco |
@@ -314,4 +345,5 @@ Desacopla a rotina pessoal do app: nada de rotina embutida; o início vem de uma
 | 6 | Lembretes (notificações locais) + backup/exportação JSON |
 | 7 | Sync multi-dispositivo (Supabase) + Google Agenda |
 | 8 | Templates/padrões editáveis + drag-and-drop dos blocos |
-| 9 | Módulo financeiro |
+| 9 | Modelos de rotina + rotação/resolução por data + import por IA |
+| 10 | Módulo financeiro |

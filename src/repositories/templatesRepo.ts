@@ -1,7 +1,9 @@
+import { eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { completions, exerciseLogs, exercises, monthlyRoutines, routineBlocks, trainingDays } from '@/db/schema';
 import { getTemplate } from '@/lib/templates';
 import { getOrCreateCategoryByName } from './categoriesRepo';
+import { getEditingModelId } from './modelsRepo';
 
 /**
  * Wipes routine/training/study content (blocks, monthly routines, training days,
@@ -25,9 +27,10 @@ export function clearExampleData(): void {
  * inserts (onboarding on an empty routine). Category names are resolved/created up
  * front, then blocks are inserted in a single transaction.
  */
-export function applyTemplate(templateId: string, opts: { replace: boolean }): void {
+export function applyTemplate(templateId: string, opts: { replace: boolean; modelId?: number }): void {
   const tpl = getTemplate(templateId);
   if (!tpl) return;
+  const modelId = opts.modelId ?? getEditingModelId();
 
   const catIdByName = new Map<string, number>();
   for (const b of tpl.blocks) {
@@ -36,9 +39,10 @@ export function applyTemplate(templateId: string, opts: { replace: boolean }): v
 
   db.transaction((tx) => {
     if (opts.replace) {
-      tx.update(routineBlocks).set({ deleted: 1 }).run();
+      tx.update(routineBlocks).set({ deleted: 1 }).where(eq(routineBlocks.modelId, modelId)).run();
     }
     const rows = tpl.blocks.map((b) => ({
+      modelId,
       dayLabel: b.dayLabel,
       start: b.start,
       end: b.end,

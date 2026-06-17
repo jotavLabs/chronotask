@@ -11,6 +11,7 @@ import { formatDuration } from '@/lib/validation';
 import { getDatesWithExtras } from '@/repositories/adaptedDayRepo';
 import { applyReorder } from '@/repositories/blocksRepo';
 import { buildHolidayDateSet } from '@/repositories/categoriesRepo';
+import { getModelIdForDate } from '@/repositories/schedulingRepo';
 import { useRoutineStore } from '@/store/routineStore';
 
 export default function SemanaScreen() {
@@ -28,8 +29,9 @@ export default function SemanaScreen() {
   const [reordering, setReordering] = useState(false);
 
   function onReorderDay(ids: number[]) {
-    applyReorder(selectedLabel, ids);
-    loadDay(selectedLabel);
+    const modelId = getModelIdForDate(selectedDate);
+    applyReorder(selectedLabel, ids, modelId);
+    loadDay(selectedLabel, modelId);
     setExtras(getDatesWithExtras(weekDates.map(toIsoDate)));
   }
 
@@ -38,7 +40,7 @@ export default function SemanaScreen() {
     useCallback(() => {
       for (const d of weekDates) {
         const label = resolveDayLabel(d);
-        loadDay(label);
+        loadDay(label, getModelIdForDate(d));
         loadDoneForDate(toIsoDate(d));
       }
       setExtras(getDatesWithExtras(weekDates.map(toIsoDate)));

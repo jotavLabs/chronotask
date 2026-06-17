@@ -76,3 +76,23 @@ export function getStartChoiceDone(): boolean {
 export function setStartChoiceDone(done: boolean): void {
   setSetting('start_choice_done', done ? '1' : '0');
 }
+
+// ─── routine models (S9) ───────────────────────────────────────────────────────
+
+export function getEditingModelIdRaw(): number | null {
+  const v = getSetting('editing_model_id');
+  return v ? Number(v) : null;
+}
+
+export function setEditingModelId(id: number): void {
+  setSetting('editing_model_id', String(id));
+}
+
+export function getLastUsedModelIdRaw(): number | null {
+  const v = getSetting('last_used_model_id');
+  return v ? Number(v) : null;
+}
+
+export function setLastUsedModelId(id: number): void {
+  setSetting('last_used_model_id', String(id));
+}
