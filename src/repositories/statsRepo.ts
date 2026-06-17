@@ -62,7 +62,7 @@ export function getScheduledCounts(
   const end = new Date(endDate);
   end.setHours(0, 0, 0, 0);
   while (cur <= end) {
-    const label = resolveDayLabel(cur, holidaySet);
+    const label = resolveDayLabel(cur);
     for (const b of byDay.get(label) ?? []) {
       if (b.topic) topic[b.topic] = (topic[b.topic] ?? 0) + 1;
       else if (b.category && TRACKABLE_CATEGORIES.includes(b.category)) {

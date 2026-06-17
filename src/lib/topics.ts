@@ -1,14 +1,8 @@
 // Pure normalization of free-text study blocks into a canonical topic.
-// Shared by the seed (new installs) and the backfill (existing DBs).
+// Topic rules are domain-specific and ship EMPTY by default — no personal data.
+// Add entries here to auto-classify study blocks for the topic stats.
 
-const TOPIC_RULES: { topic: string; pattern: RegExp }[] = [
-  { topic: 'Inglês', pattern: /ingl[êe]s|toefl|anki/i },
-  { topic: 'Matemática', pattern: /matem[áa]tica/i },
-  { topic: 'Redação', pattern: /reda[çc][ãa]o/i },
-  { topic: 'PM/CAPM', pattern: /\bpm\b|capm|gest[ãa]o de projetos/i },
-  { topic: 'Cloud/AWS', pattern: /cloud|aws/i },
-  { topic: 'Claude/IA', pattern: /claude|intelig[êe]ncia artificial|\bia\b/i },
-];
+const TOPIC_RULES: { topic: string; pattern: RegExp }[] = [];
 
 /** Maps an Estudo block's activity (+ note) to a normalized topic, or null. */
 export function topicFor(activity: string, note?: string | null): string | null {

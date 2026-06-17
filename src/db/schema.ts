@@ -14,6 +14,7 @@ export const categories = sqliteTable('categories', {
   tieGroup: text('tie_group'),
   protected: integer('protected').notNull().default(0),
   color: text('color'),
+  skipOnHoliday: integer('skip_on_holiday').notNull().default(0), // 1 = sai da rotina em feriado
   ...syncCols,
 });
 

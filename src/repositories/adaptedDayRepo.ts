@@ -3,7 +3,7 @@
 
 import { buildAdaptedDay } from '@/lib/adaptationEngine';
 import type { AdaptedDay } from '@/lib/adaptationEngine';
-import { resolveDayLabel, toIsoDate } from '@/lib/dayResolver';
+import { isHolidayDate, resolveDayLabel, toIsoDate } from '@/lib/dayResolver';
 import { getHolidayNamePure } from '@/lib/holidays';
 import { getBlocksForDay } from './blocksRepo';
 import { buildHolidayDateSet, buildHolidayMap, getAllCategories } from './categoriesRepo';
@@ -13,8 +13,9 @@ import { getAllMonthly } from './monthlyRoutinesRepo';
 export function loadAdaptedDay(date: Date): AdaptedDay {
   const iso = toIsoDate(date);
   const holidaySet = buildHolidayDateSet();
-  const dayLabel = resolveDayLabel(date, holidaySet);
-  const holidayName = dayLabel === 'Feriado' ? getHolidayNamePure(iso, buildHolidayMap()) : null;
+  const dayLabel = resolveDayLabel(date);
+  const isHoliday = isHolidayDate(date, holidaySet);
+  const holidayName = isHoliday ? getHolidayNamePure(iso, buildHolidayMap()) : null;
 
   const blocks = getBlocksForDay(dayLabel).map((b) => ({
     id: b.id,
@@ -33,6 +34,7 @@ export function loadAdaptedDay(date: Date): AdaptedDay {
     cutOrder: c.cutOrder,
     protected: c.protected,
     tieGroup: c.tieGroup,
+    skipOnHoliday: c.skipOnHoliday,
   }));
 
   const events = getEventsByDate(iso).map((e) => ({
@@ -54,7 +56,7 @@ export function loadAdaptedDay(date: Date): AdaptedDay {
       categoryName: m.categoryName,
     }));
 
-  return buildAdaptedDay({ date: iso, dayLabel, blocks, categories, events, activeMonthly, holidayName });
+  return buildAdaptedDay({ date: iso, dayLabel, isHoliday, blocks, categories, events, activeMonthly, holidayName });
 }
 
 /**

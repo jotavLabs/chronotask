@@ -1,13 +1,14 @@
 import '../global.css';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { Stack } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
+import { StartChoice } from '@/components/StartChoice';
 import { db } from '@/db/client';
 import { backfillTopics } from '@/db/backfillTopics';
 import migrations from '@/db/migrations';
 import { runSeed } from '@/db/seed';
-import { seedTraining } from '@/db/seedTraining';
+import { getStartChoiceDone } from '@/repositories/settingsRepo';
 import { configureNotifications, rescheduleNotifications } from '@/services/notificationService';
 import { useThemeStore } from '@/store/themeStore';
 
@@ -33,19 +34,21 @@ function WebUnsupported() {
 function MobileApp() {
   const { success, error } = useMigrations(db, migrations);
   const seeded = useRef(false);
+  const [phase, setPhase] = useState<'loading' | 'choice' | 'ready'>('loading');
 
   useEffect(() => {
     if (success && !seeded.current) {
       seeded.current = true;
       try {
         runSeed();
-        seedTraining();
         backfillTopics();
         useThemeStore.getState().init();
         configureNotifications();
         void rescheduleNotifications();
+        setPhase(getStartChoiceDone() ? 'ready' : 'choice');
       } catch (e) {
         console.error('[seed]', e);
+        setPhase('ready');
       }
     }
   }, [success]);
@@ -60,12 +63,16 @@ function MobileApp() {
     );
   }
 
-  if (!success) {
+  if (!success || phase === 'loading') {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
         <Text style={{ color: '#9CA3AF', fontSize: 14 }}>Iniciando…</Text>
       </View>
     );
+  }
+
+  if (phase === 'choice') {
+    return <StartChoice onDone={() => setPhase('ready')} />;
   }
 
   return (

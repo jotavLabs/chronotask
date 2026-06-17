@@ -30,6 +30,7 @@ export default function CategoriaForm() {
   const [isProtected, setIsProtected] = useState(false);
   const [cutOrder, setCutOrder] = useState<number>(1);
   const [tieGroup, setTieGroup] = useState('');
+  const [skipOnHoliday, setSkipOnHoliday] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [usageBlock, setUsageBlock] = useState<number | null>(null);
@@ -43,6 +44,7 @@ export default function CategoriaForm() {
       setIsProtected(c.protected === 1);
       setCutOrder(c.cutOrder ?? 1);
       setTieGroup(c.tieGroup ?? '');
+      setSkipOnHoliday(c.skipOnHoliday === 1);
     }
   }, [catId]);
 
@@ -66,6 +68,7 @@ export default function CategoriaForm() {
       protected: isProtected ? 1 : 0,
       tieGroup,
       color,
+      skipOnHoliday: skipOnHoliday ? 1 : 0,
     };
     if (editing && catId != null) updateCategory(catId, input);
     else createCategory(input);
@@ -124,6 +127,16 @@ export default function CategoriaForm() {
           <Text className="text-xs text-gray-400 dark:text-gray-500">Nunca é cortada (ex.: Trabalho)</Text>
         </View>
         <Switch value={isProtected} onValueChange={setIsProtected} />
+      </View>
+
+      <View className="flex-row items-center justify-between py-2 mb-2">
+        <View className="flex-1 pr-3">
+          <Text className="text-sm font-medium text-gray-800 dark:text-gray-100">Sair em feriado</Text>
+          <Text className="text-xs text-gray-400 dark:text-gray-500">
+            Em feriado, os blocos desta categoria somem e o tempo livre absorve (ex.: Trabalho)
+          </Text>
+        </View>
+        <Switch value={skipOnHoliday} onValueChange={setSkipOnHoliday} />
       </View>
 
       {!isProtected && (

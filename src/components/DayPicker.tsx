@@ -1,16 +1,7 @@
 import { ScrollView, Text, TouchableOpacity } from 'react-native';
 import type { DayLabel } from '@/lib/dayResolver';
 
-export const DAY_LABELS: DayLabel[] = [
-  'Seg',
-  'Ter',
-  'Qua',
-  'Qui',
-  'Sex',
-  'Sab',
-  'Dom',
-  'Feriado',
-];
+export const DAY_LABELS: DayLabel[] = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
 
 interface Props {
   value: DayLabel;

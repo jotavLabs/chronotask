@@ -2,8 +2,9 @@
 // Adaptation engine (Sprint 3) — pure, deterministic, no DB / no UI.
 //
 // Two opposite modes for a given date:
-//   MODE A (holiday): uses the 'Feriado' template and only *fits* events/monthly
-//                     into free time — nothing is shortened.
+//   MODE A (holiday): starts from the weekday routine, removes blocks of categories
+//                     flagged skip_on_holiday (default: Trabalho), and only *fits*
+//                     events/monthly into free time — nothing is shortened.
 //   MODE B (normal):  extra demand (events + scheduled monthly routines) is taken
 //                     from the routine by cut_order priority (cascade), then the
 //                     timeline is reflowed around fixed anchors.
@@ -18,6 +19,7 @@ export type EngineCategory = {
   cutOrder: number | null;
   protected: number; // 1 = never cut
   tieGroup: string | null;
+  skipOnHoliday?: number; // 1 = removed from the routine on holidays (default 0)
 };
 
 export type EngineBlock = {
@@ -248,7 +250,7 @@ export type TimelineItem = {
 };
 
 /** Categories treated as elastic free-time buffers (shrink, split, reposition). */
-const FREE_CATEGORIES = new Set(['Lazer', 'Leitura']);
+const FREE_CATEGORIES = new Set(['Tempo Livre', 'Lazer', 'Leitura']);
 const DAY_END = 1440;
 const DEFAULT_WIN_START = 360; // 06:00
 const DEFAULT_WIN_END = 1320; // 22:00
@@ -492,7 +494,7 @@ function closeGaps(items: TimelineItem[], winStart: number, winEnd: number): Tim
   const filler = (s: number, e: number): TimelineItem => ({
     key: `free-fill-${fillerSeq++}`, refId: -1,
     start: minutesToTime(s % DAY_END), end: minutesToTime(e % DAY_END),
-    activity: 'Tempo livre', category: 'Lazer', source: 'routine',
+    activity: 'Tempo livre', category: 'Tempo Livre', source: 'routine',
     adapted: false, originalDuration: e - s, adaptedDuration: e - s, removed: false,
   });
   const grow = (it: TimelineItem, by: number): TimelineItem => ({
@@ -640,7 +642,8 @@ export type Verdict = 'FERIADO' | 'OK' | 'AJUSTADO' | 'CONFLITO' | 'IMPOSSIVEL';
 
 export type AdaptedDayDeps = {
   date: string; // ISO YYYY-MM-DD
-  dayLabel: DayLabel;
+  dayLabel: DayLabel; // weekday (Seg…Dom)
+  isHoliday?: boolean; // applies the skip_on_holiday rule (default false)
   blocks: EngineBlock[];
   categories: EngineCategory[];
   events: EngineEvent[];
@@ -674,15 +677,23 @@ function noCut(blocks: EngineBlock[]): AdaptedBlock[] {
  * MODE B (normal: cascade sacrifice + reflow). Pure: all data comes via deps.
  */
 export function buildAdaptedDay(deps: AdaptedDayDeps): AdaptedDay {
-  const { date, dayLabel, blocks, categories, events, activeMonthly } = deps;
+  const { date, blocks, categories, events, activeMonthly, isHoliday = false } = deps;
   const holidayName = deps.holidayName ?? null;
+
+  // Holiday rule: drop blocks whose category opts out on holidays (default: Trabalho).
+  // Free time absorbs the freed space during reflow — no separate hardcoded day.
+  const catById = new Map(categories.map((c) => [c.id, c]));
+  const usableBlocks = isHoliday
+    ? blocks.filter((b) => (b.categoryId == null ? true : catById.get(b.categoryId)?.skipOnHoliday !== 1))
+    : blocks;
+
   const demand = computeDemand(events, activeMonthly);
-  const anchors = collectAnchors(blocks, categories, events);
+  const anchors = collectAnchors(usableBlocks, categories, events);
   const conflicts = detectConflicts(events, anchors);
 
-  // MODE A — holiday: never cut, just fit events/monthly into free time.
-  if (dayLabel === 'Feriado') {
-    const timeline = reflow(noCut(blocks), categories, events, activeMonthly);
+  // MODE A — holiday: never cut, just fit events/monthly into the (now larger) free time.
+  if (isHoliday) {
+    const timeline = reflow(noCut(usableBlocks), categories, events, activeMonthly);
     markConflicts(timeline, conflicts);
     return {
       date,
@@ -699,7 +710,7 @@ export function buildAdaptedDay(deps: AdaptedDayDeps): AdaptedDay {
 
   // MODE B — normal: no extra demand → base routine unchanged.
   if (demand === 0) {
-    const timeline = reflow(noCut(blocks), categories, [], []);
+    const timeline = reflow(noCut(usableBlocks), categories, [], []);
     return {
       date,
       mode: 'NORMAL',
@@ -714,7 +725,7 @@ export function buildAdaptedDay(deps: AdaptedDayDeps): AdaptedDay {
   }
 
   // MODE B — with demand: cascade sacrifice, then reflow.
-  const { adjusted, cutsByLevel, shortfall } = runCascade(blocks, categories, demand);
+  const { adjusted, cutsByLevel, shortfall } = runCascade(usableBlocks, categories, demand);
   const timeline = reflow(adjusted, categories, events, activeMonthly);
   markConflicts(timeline, conflicts);
   const verdict: Verdict =
