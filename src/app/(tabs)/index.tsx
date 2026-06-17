@@ -14,6 +14,7 @@ import { loadAdaptedDay } from '@/repositories/adaptedDayRepo';
 import { applyReorder, getBlocksForDay } from '@/repositories/blocksRepo';
 import type { BlockWithCategory } from '@/repositories/blocksRepo';
 import { getAllCategories } from '@/repositories/categoriesRepo';
+import { getModelIdForDate } from '@/repositories/schedulingRepo';
 import { useRoutineStore } from '@/store/routineStore';
 
 function isoToDate(iso: string): Date {
@@ -46,7 +47,7 @@ export default function HojeScreen() {
   useFocusEffect(
     useCallback(() => {
       setDay(loadAdaptedDay(date));
-      setBaseBlocks(getBlocksForDay(label));
+      setBaseBlocks(getBlocksForDay(label, getModelIdForDate(date)));
       loadDoneForDate(iso);
     }, [date, iso, label]),
   );
@@ -56,8 +57,9 @@ export default function HojeScreen() {
   const isClean = day != null && day.verdict === 'OK';
 
   function onReorderToday(ids: number[]) {
-    applyReorder(label, ids);
-    setBaseBlocks(getBlocksForDay(label));
+    const modelId = getModelIdForDate(date);
+    applyReorder(label, ids, modelId);
+    setBaseBlocks(getBlocksForDay(label, modelId));
     setDay(loadAdaptedDay(date));
   }
 

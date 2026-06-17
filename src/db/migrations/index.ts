@@ -11,9 +11,23 @@ const migrations = {
       { idx: 3, when: 3, tag: '0003_sync', breakpoints: true },
       { idx: 4, when: 4, tag: '0004_skip_holiday', breakpoints: true },
       { idx: 5, when: 5, tag: '0005_models', breakpoints: true },
+      { idx: 6, when: 6, tag: '0006_rotation', breakpoints: true },
     ],
   },
   migrations: {
+    m0006: [
+      "CREATE TABLE IF NOT EXISTS `rotation` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL, `enabled` integer NOT NULL DEFAULT 0, `mode` text NOT NULL DEFAULT 'loop', `period` text NOT NULL DEFAULT 'weekly', `anchor_date` text, `updated_at` text, `deleted` integer DEFAULT 0 NOT NULL);",
+      'CREATE TABLE IF NOT EXISTS `rotation_items` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL, `position` integer NOT NULL DEFAULT 0, `model_id` integer NOT NULL, `updated_at` text, `deleted` integer DEFAULT 0 NOT NULL);',
+      'CREATE TABLE IF NOT EXISTS `week_assignments` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL, `period_start` text NOT NULL, `model_id` integer NOT NULL, `updated_at` text, `deleted` integer DEFAULT 0 NOT NULL);',
+      "INSERT INTO `rotation` (`enabled`, `mode`, `period`, `anchor_date`, `updated_at`, `deleted`) VALUES (0, 'loop', 'weekly', strftime('%Y-%m-%d','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'), 0);",
+    ]
+      .concat(
+        ['rotation', 'rotation_items', 'week_assignments'].flatMap((t) => [
+          `CREATE TRIGGER IF NOT EXISTS \`${t}_sync_ins\` AFTER INSERT ON \`${t}\` WHEN NEW.updated_at IS NULL BEGIN UPDATE \`${t}\` SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE rowid = NEW.rowid; END;`,
+          `CREATE TRIGGER IF NOT EXISTS \`${t}_sync_upd\` AFTER UPDATE ON \`${t}\` WHEN NEW.updated_at IS OLD.updated_at BEGIN UPDATE \`${t}\` SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE rowid = NEW.rowid; END;`,
+        ]),
+      )
+      .join('\n--> statement-breakpoint\n'),
     m0005: [
       'CREATE TABLE IF NOT EXISTS `routine_models` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL, `name` text NOT NULL, `created_at` text, `source` text, `updated_at` text, `deleted` integer DEFAULT 0 NOT NULL);',
       'ALTER TABLE `routine_blocks` ADD COLUMN `model_id` integer;',

@@ -138,8 +138,35 @@ export const syncState = sqliteTable('sync_state', {
   value: text('value').notNull(),
 });
 
+// Rotation / sequence of models (S9C)
+export const rotation = sqliteTable('rotation', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  enabled: integer('enabled').notNull().default(0),
+  mode: text('mode').notNull().default('loop'),
+  period: text('period').notNull().default('weekly'), // weekly | monthly
+  anchorDate: text('anchor_date'),
+  ...syncCols,
+});
+
+export const rotationItems = sqliteTable('rotation_items', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  position: integer('position').notNull().default(0),
+  modelId: integer('model_id').notNull(),
+  ...syncCols,
+});
+
+export const weekAssignments = sqliteTable('week_assignments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  periodStart: text('period_start').notNull(),
+  modelId: integer('model_id').notNull(),
+  ...syncCols,
+});
+
 export type Category = typeof categories.$inferSelect;
 export type RoutineModel = typeof routineModels.$inferSelect;
+export type Rotation = typeof rotation.$inferSelect;
+export type RotationItem = typeof rotationItems.$inferSelect;
+export type WeekAssignment = typeof weekAssignments.$inferSelect;
 export type RoutineBlock = typeof routineBlocks.$inferSelect;
 export type MonthlyRoutine = typeof monthlyRoutines.$inferSelect;
 export type Event = typeof events.$inferSelect;

@@ -13,6 +13,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { deleteBlock, getBlocksForDayByCategory } from '@/repositories/blocksRepo';
 import type { BlockWithCategory } from '@/repositories/blocksRepo';
 import { getDoneBlockIds, setBlockDone } from '@/repositories/completionsRepo';
+import { getModelIdForDate } from '@/repositories/schedulingRepo';
 
 const CAT = 'Estudo/Exercício';
 
@@ -49,8 +50,8 @@ export default function EstudosScreen() {
 
   const reload = useCallback(() => {
     setDoneIds(getDoneBlockIds(iso));
-    setTodayBlocks(getBlocksForDayByCategory(dayLabel, CAT));
-  }, [iso, dayLabel]);
+    setTodayBlocks(getBlocksForDayByCategory(dayLabel, CAT, getModelIdForDate(today)));
+  }, [iso, dayLabel, today]);
   useFocusEffect(reload);
 
   function toggle(blockId: number) {
@@ -68,7 +69,7 @@ export default function EstudosScreen() {
     () =>
       weekDates.map((d) => {
         const label = resolveDayLabel(d);
-        return { date: d, label, blocks: getBlocksForDayByCategory(label, CAT) };
+        return { date: d, label, blocks: getBlocksForDayByCategory(label, CAT, getModelIdForDate(d)) };
       }),
     [weekDates],
   );

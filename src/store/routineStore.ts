@@ -12,7 +12,7 @@ interface DayData {
 interface RoutineStore {
   days: Record<string, DayData>; // dayLabel → blocks
   dates: Record<string, Set<number>>; // isoDate → doneIds
-  loadDay: (dayLabel: string) => void;
+  loadDay: (dayLabel: string, modelId?: number) => void;
   loadDoneForDate: (isoDate: string) => void;
   toggleBlock: (isoDate: string, blockId: number) => void;
   isDone: (isoDate: string, blockId: number) => boolean;
@@ -22,9 +22,9 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
   days: {},
   dates: {},
 
-  loadDay(dayLabel) {
+  loadDay(dayLabel, modelId) {
     // Always refetch so edits made in the "Gerenciar" screens show up here.
-    const blocks = getBlocksForDay(dayLabel);
+    const blocks = getBlocksForDay(dayLabel, modelId);
     set((s) => ({
       days: {
         ...s.days,
