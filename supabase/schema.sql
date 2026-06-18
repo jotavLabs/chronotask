@@ -20,8 +20,19 @@ create table if not exists public.categories (
   user_id     uuid not null default auth.uid()
 );
 
+create table if not exists public.routine_models (
+  id          bigint primary key,
+  name        text not null,
+  created_at  text,
+  source      text,
+  updated_at  text,
+  deleted     integer not null default 0,
+  user_id     uuid not null default auth.uid()
+);
+
 create table if not exists public.routine_blocks (
   id           bigint primary key,
+  model_id     bigint,
   day_label    text not null,
   start        text not null,
   "end"        text not null,
@@ -133,7 +144,7 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'categories','routine_blocks','monthly_routines','events','holidays',
+    'categories','routine_models','routine_blocks','monthly_routines','events','holidays',
     'completions','training_days','exercises','exercise_logs'
   ]
   loop

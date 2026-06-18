@@ -3,6 +3,7 @@ import { sqlite } from '@/db/client';
 /** Domain tables that participate in cloud sync (settings stays device-local). */
 export const SYNC_TABLES = [
   'categories',
+  'routine_models',
   'routine_blocks',
   'monthly_routines',
   'events',

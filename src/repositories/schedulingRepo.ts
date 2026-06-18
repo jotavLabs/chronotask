@@ -32,11 +32,11 @@ export function getResolutionForDate(date: Date): Resolution {
  */
 export function getModelIdForDate(date: Date): number {
   const res = resolveModelForDate(date, loadSchedulingConfig());
+  const last = getLastUsedModelIdRaw();
   if (res.modelId != null && getModelById(res.modelId)) {
-    setLastUsedModelId(res.modelId);
+    if (res.modelId !== last) setLastUsedModelId(res.modelId); // avoid a DB write on every call
     return res.modelId;
   }
-  const last = getLastUsedModelIdRaw();
   if (last != null && getModelById(last)) return last;
   return getEditingModelId();
 }

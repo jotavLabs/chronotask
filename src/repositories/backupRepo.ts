@@ -7,9 +7,13 @@ import {
   exercises,
   holidays,
   monthlyRoutines,
+  rotation,
+  rotationItems,
   routineBlocks,
+  routineModels,
   settings,
   trainingDays,
+  weekAssignments,
 } from '@/db/schema';
 import type { BackupData } from '@/lib/backup';
 
@@ -18,6 +22,7 @@ export function getAllData(): BackupData {
   return {
     settings: db.select().from(settings).all(),
     categories: db.select().from(categories).all(),
+    routine_models: db.select().from(routineModels).all(),
     routine_blocks: db.select().from(routineBlocks).all(),
     monthly_routines: db.select().from(monthlyRoutines).all(),
     events: db.select().from(events).all(),
@@ -26,6 +31,9 @@ export function getAllData(): BackupData {
     training_days: db.select().from(trainingDays).all(),
     exercises: db.select().from(exercises).all(),
     exercise_logs: db.select().from(exerciseLogs).all(),
+    rotation: db.select().from(rotation).all(),
+    rotation_items: db.select().from(rotationItems).all(),
+    week_assignments: db.select().from(weekAssignments).all(),
   };
 }
 
@@ -46,7 +54,11 @@ export function restoreData(data: BackupData): void {
     tx.delete(completions).run();
     tx.delete(events).run();
     tx.delete(monthlyRoutines).run();
+    tx.delete(weekAssignments).run();
+    tx.delete(rotationItems).run();
+    tx.delete(rotation).run();
     tx.delete(routineBlocks).run();
+    tx.delete(routineModels).run();
     tx.delete(holidays).run();
     tx.delete(trainingDays).run();
     tx.delete(categories).run();
@@ -54,6 +66,7 @@ export function restoreData(data: BackupData): void {
 
     // insert parents first
     insertAll(tx, categories, data.categories);
+    insertAll(tx, routineModels, data.routine_models);
     insertAll(tx, trainingDays, data.training_days);
     insertAll(tx, routineBlocks, data.routine_blocks);
     insertAll(tx, monthlyRoutines, data.monthly_routines);
@@ -62,6 +75,9 @@ export function restoreData(data: BackupData): void {
     insertAll(tx, completions, data.completions);
     insertAll(tx, exercises, data.exercises);
     insertAll(tx, exerciseLogs, data.exercise_logs);
+    insertAll(tx, rotation, data.rotation);
+    insertAll(tx, rotationItems, data.rotation_items);
+    insertAll(tx, weekAssignments, data.week_assignments);
     insertAll(tx, settings, data.settings);
   });
 }
