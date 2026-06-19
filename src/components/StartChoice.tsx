@@ -18,7 +18,9 @@ export function StartChoice({ onDone }: { onDone: () => void }) {
   const templates = getTemplates();
 
   function choose(id: TemplateId) {
-    applyTemplate(id, { replace: false });
+    // replace (not append): a "start" must set the model's routine, even if the
+    // editing model already had leftover blocks (e.g. old seed migrated on upgrade).
+    applyTemplate(id, { replace: true });
     setStartChoiceDone(true);
     onDone();
   }
