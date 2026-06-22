@@ -4,6 +4,8 @@ import { Alert, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } fr
 import type { Href } from 'expo-router';
 import type { NotifPrefs, NotifScope } from '@/lib/notifications';
 import { THEME_MODES } from '@/lib/theme';
+import { findModelRedundantIds, removeBlocks } from '@/repositories/blocksRepo';
+import { getEditingModelId, getModelById } from '@/repositories/modelsRepo';
 import { getLastBackupAt, getNotifPrefs, setNotifPrefs } from '@/repositories/settingsRepo';
 import { clearExampleData } from '@/repositories/templatesRepo';
 import { applyBackup, exportBackup, pickBackup } from '@/services/backupService';
@@ -134,6 +136,31 @@ export default function AjustesScreen() {
     ]);
   }
 
+  function onRemoveOverflow() {
+    const modelId = getEditingModelId();
+    const name = getModelById(modelId)?.name ?? 'modelo';
+    const ids = findModelRedundantIds(modelId);
+    if (ids.length === 0) {
+      Alert.alert('Tudo certo', `Nenhum bloco sobreposto ou fora da janela do dia em "${name}".`);
+      return;
+    }
+    Alert.alert(
+      'Remover blocos que sobram?',
+      `Encontrei ${ids.length} bloco(s) sobreposto(s) ou fora da janela do dia em "${name}" — é o que aparece "cortado hoje" (esmaecido). Remover?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: () => {
+            removeBlocks(ids);
+            Alert.alert('Pronto', `${ids.length} bloco(s) removido(s). Abra as abas para conferir.`);
+          },
+        },
+      ],
+    );
+  }
+
   function onClearExample() {
     Alert.alert(
       'Limpar dados de exemplo?',
@@ -228,6 +255,10 @@ export default function AjustesScreen() {
         <LinkRow href="/gerenciar" icon="🗂️" label="Gerenciar rotina e dados" />
         <LinkRow href="/gerenciar/categorias" icon="🎨" label="Categorias & prioridades" />
         <LinkRow href={'/ajustes/inicio' as Href} icon="🧩" label="Trocar/redefinir ponto de partida" />
+        <TouchableOpacity onPress={onRemoveOverflow} className="flex-row items-center px-4 py-3 border-b border-gray-100 dark:border-gray-700/50">
+          <Text className="text-base mr-3">✂️</Text>
+          <Text className="flex-1 text-sm text-gray-800 dark:text-gray-100">Remover blocos que sobram do dia</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={onClearExample} className="flex-row items-center px-4 py-3">
           <Text className="text-base mr-3">🧹</Text>
           <Text className="flex-1 text-sm text-red-500">Limpar dados de exemplo</Text>
