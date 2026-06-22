@@ -2,9 +2,12 @@ import { and, eq, max } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { categories, completions, routineBlocks } from '@/db/schema';
 import type { RoutineBlock } from '@/db/schema';
+import { findRedundantBlockIds } from '@/lib/cleanup';
 import { FREE_CATEGORY_NAMES, placementDuration, repackByOrder } from '@/lib/repack';
 import { computeDuration, timeToMinutes } from '@/lib/validation';
 import { getEditingModelId } from './modelsRepo';
+
+const ALL_DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
 
 export type BlockWithCategory = {
   id: number;
@@ -184,5 +187,34 @@ export function applyReorder(dayLabel: string, orderedIds: number[], modelId: nu
         .where(eq(routineBlocks.id, id))
         .run();
     });
+  });
+}
+
+/** Ids of overlapping/out-of-window blocks across all days of a model (leftover cleanup). */
+export function findModelRedundantIds(modelId: number): number[] {
+  const ids: number[] = [];
+  for (const day of ALL_DAYS) {
+    const blocks = getBlocksForDay(day, modelId).map((b) => ({
+      id: b.id,
+      start: b.start,
+      end: b.end,
+      sleep: b.categoryName === 'Sono',
+    }));
+    ids.push(...findRedundantBlockIds(blocks));
+  }
+  return ids;
+}
+
+/** Soft-deletes the given blocks (and their completions), like deleteBlock in bulk. */
+export function removeBlocks(ids: number[]): void {
+  if (ids.length === 0) return;
+  db.transaction((tx) => {
+    for (const id of ids) {
+      tx.update(completions)
+        .set({ deleted: 1 })
+        .where(and(eq(completions.refType, 'block'), eq(completions.refId, id)))
+        .run();
+      tx.update(routineBlocks).set({ deleted: 1 }).where(eq(routineBlocks.id, id)).run();
+    }
   });
 }
