@@ -33,8 +33,8 @@ npm test
 
 ### Build APK (beta) — distribuição manual
 
-App: **ChronoTask** (`slug: chronotask`, `version: 1.0.0-beta.1`, `android.package: com.SEUNOME.chronotask`).
-Antes de buildar, **troque `SEUNOME`** em `app.json` (`android.package`) e confirme que existem os arquivos `assets/icon.png`, `assets/adaptive-icon-foreground.png` e `assets/splash-icon.png`.
+App: **ChronoTask** (`slug: chronotask`, `version: 1.0.0-beta.1`, `android.package: com.jotavlabs.chronotask`).
+Identidade e ícones (`assets/icon.png`, `assets/adaptive-icon-foreground.png`, `assets/splash-icon.png`, 1024×1024) já estão configurados. Para publicar sob outro package, edite `android.package` em `app.json`.
 
 O perfil `preview` do `eas.json` gera um **APK universal** instalável direto (`distribution: internal` + `buildType: apk`), não um pacote de loja.
 
@@ -47,7 +47,7 @@ O perfil `preview` do `eas.json` gera um **APK universal** instalável direto (`
 4. **Aviso aos testadores:** no Android, ativar **"instalar apps de fontes desconhecidas"** (ou permitir para o navegador/gerenciador de arquivos usado) antes de abrir o `.apk`.
 5. **Nova versão:** incremente `version` **e** `android.versionCode` em `app.json`, rebuilde e suba o novo `.apk`.
 
-> Observação: como `slug` mudou (de `routine-app` para `chronotask`), no primeiro `eas build` o EAS pode avisar que o `slug` não bate com o projeto EAS existente (`extra.eas.projectId`). Resolva renomeando o projeto para `chronotask` em expo.dev **ou** rodando `eas init` para vincular/criar um projeto com o novo slug (pode gerar um novo keystore — ok para um beta novo).
+> Projeto EAS: `@silvajv_7/chronotask` (`extra.eas.projectId` em `app.json`). O keystore é gerado e guardado pelo EAS no primeiro build — não apague nem perca esse projeto, ou as próximas versões assinarão com outra chave e não atualizarão por cima da instalada.
 
 ---
 
