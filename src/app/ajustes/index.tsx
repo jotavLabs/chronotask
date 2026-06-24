@@ -10,6 +10,7 @@ import { getLastBackupAt, getNotifPrefs, setNotifPrefs } from '@/repositories/se
 import { clearExampleData } from '@/repositories/templatesRepo';
 import { applyBackup, exportBackup, pickBackup } from '@/services/backupService';
 import { requestNotifPermission, rescheduleNotifications } from '@/services/notificationService';
+import { useTabsStore } from '@/store/tabsStore';
 import { useThemeStore } from '@/store/themeStore';
 
 function SectionTitle({ children }: { children: string }) {
@@ -92,6 +93,10 @@ const SCOPE_LABEL: Record<NotifScope, string> = {
 export default function AjustesScreen() {
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
+  const showTraining = useTabsStore((s) => s.showTraining);
+  const showStudies = useTabsStore((s) => s.showStudies);
+  const setShowTraining = useTabsStore((s) => s.setShowTraining);
+  const setShowStudies = useTabsStore((s) => s.setShowStudies);
   const [notif, setNotif] = useState<NotifPrefs>(() => getNotifPrefs());
   const [lastBackup, setLastBackup] = useState<string | null>(() => getLastBackupAt());
 
@@ -216,6 +221,15 @@ export default function AjustesScreen() {
           );
         })}
       </Card>
+
+      <SectionTitle>Abas</SectionTitle>
+      <Card>
+        <SwitchRow label="Mostrar aba Treino" value={showTraining} onValueChange={setShowTraining} />
+        <SwitchRow label="Mostrar aba Estudos" value={showStudies} onValueChange={setShowStudies} />
+      </Card>
+      <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 px-1">
+        Treino e Estudos ficam ocultos por padrão. Ative para exibi-los na barra inferior.
+      </Text>
 
       <SectionTitle>Lembretes</SectionTitle>
       <Card>

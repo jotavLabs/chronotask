@@ -11,6 +11,7 @@ import migrations from '@/db/migrations';
 import { runSeed } from '@/db/seed';
 import { getStartChoiceDone } from '@/repositories/settingsRepo';
 import { configureNotifications, rescheduleNotifications } from '@/services/notificationService';
+import { useTabsStore } from '@/store/tabsStore';
 import { useThemeStore } from '@/store/themeStore';
 
 // ─── web fallback (SharedArrayBuffer not available in standard dev server) ──────
@@ -44,6 +45,7 @@ function MobileApp() {
         runSeed();
         backfillTopics();
         useThemeStore.getState().init();
+        useTabsStore.getState().init();
         configureNotifications();
         void rescheduleNotifications();
         setPhase(getStartChoiceDone() ? 'ready' : 'choice');

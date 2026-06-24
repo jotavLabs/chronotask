@@ -77,6 +77,24 @@ export function setStartChoiceDone(done: boolean): void {
   setSetting('start_choice_done', done ? '1' : '0');
 }
 
+// ─── tabs visibility (Treino/Estudos ocultos por padrão) ───────────────────────
+
+export function getShowTraining(): boolean {
+  return getSetting('show_training') === '1';
+}
+
+export function setShowTraining(v: boolean): void {
+  setSetting('show_training', v ? '1' : '0');
+}
+
+export function getShowStudies(): boolean {
+  return getSetting('show_studies') === '1';
+}
+
+export function setShowStudies(v: boolean): void {
+  setSetting('show_studies', v ? '1' : '0');
+}
+
 // ─── routine models (S9) ───────────────────────────────────────────────────────
 
 export function getEditingModelIdRaw(): number | null {
