@@ -54,7 +54,10 @@ export default function HojeScreen() {
 
   const doneIds = dates[iso] ?? new Set<number>();
   const isToday = iso === toIsoDate(new Date());
-  const isClean = day != null && day.verdict === 'OK';
+  // reorder (which repacks times) only makes sense within a window; in free placement
+  // (no Sono block) blocks keep their own clock times, so drag-reorder is hidden.
+  const windowed = baseBlocks.some((b) => b.categoryName === 'Sono');
+  const isClean = day != null && day.verdict === 'OK' && windowed;
 
   function onReorderToday(ids: number[]) {
     const modelId = getModelIdForDate(date);

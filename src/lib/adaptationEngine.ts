@@ -693,6 +693,44 @@ function noCut(blocks: EngineBlock[]): AdaptedBlock[] {
 }
 
 /**
+ * Free placement (no window): every block and event keeps its own clock time, sorted by
+ * start. No 06:00–22:00 barrier, no contiguous fill, gaps allowed — the day is fully
+ * flexible. Used when the user hasn't defined a window (no Sono block).
+ */
+function freeTimeline(
+  blocks: EngineBlock[],
+  events: EngineEvent[],
+  activeMonthly: EngineMonthly[],
+): TimelineItem[] {
+  const items: TimelineItem[] = [];
+  for (const b of blocks) {
+    items.push({
+      key: `routine-${b.id}`, refId: b.id, start: b.start, end: b.end, activity: b.activity,
+      category: b.categoryName, source: 'routine', adapted: false,
+      originalDuration: b.durationMin, adaptedDuration: b.durationMin, removed: false,
+    });
+  }
+  for (const ev of events) {
+    items.push({
+      key: `event-${ev.id}`, refId: ev.id, start: ev.start, end: ev.end, activity: ev.title,
+      category: ev.categoryName, source: 'event', adapted: false,
+      originalDuration: ev.durationMin, adaptedDuration: ev.durationMin, removed: false,
+    });
+  }
+  for (const m of activeMonthly) {
+    const ref = m.suggestedBlock ? blocks.find((b) => b.categoryName === m.suggestedBlock) : undefined;
+    const startMin = ref ? timeToMinutes(ref.start) ?? 720 : 720; // sem janela: meio-dia como padrão
+    items.push({
+      key: `monthly-${m.id}`, refId: m.id,
+      start: minutesToTime(startMin % DAY_END), end: minutesToTime((startMin + m.durationMin) % DAY_END),
+      activity: m.name, category: m.categoryName, source: 'monthly', adapted: false,
+      originalDuration: m.durationMin, adaptedDuration: m.durationMin, removed: false, note: 'Rotina mensal',
+    });
+  }
+  return items.sort((a, b) => (timeToMinutes(a.start) ?? 0) - (timeToMinutes(b.start) ?? 0));
+}
+
+/**
  * Builds the Adapted Day for a date, choosing MODE A (holiday: extend/fit) or
  * MODE B (normal: cascade sacrifice + reflow). Pure: all data comes via deps.
  */
@@ -706,6 +744,24 @@ export function buildAdaptedDay(deps: AdaptedDayDeps): AdaptedDay {
   const usableBlocks = isHoliday
     ? blocks.filter((b) => (b.categoryId == null ? true : catById.get(b.categoryId)?.skipOnHoliday !== 1))
     : blocks;
+
+  // No day window (no Sono block) → free placement: every block/event keeps its own
+  // clock time, no 06:00–22:00 barrier, no contiguous fill. The user defines a window by
+  // adding a Sono block; without it the day is fully flexible (blocks anywhere).
+  const hasWindow = usableBlocks.some((b) => b.categoryId != null && catById.get(b.categoryId)?.name === 'Sono');
+  if (!hasWindow) {
+    return {
+      date,
+      mode: isHoliday ? 'FERIADO' : 'NORMAL',
+      demand: computeDemand(events, activeMonthly),
+      timeline: freeTimeline(usableBlocks, events, activeMonthly),
+      cutsByLevel: [],
+      conflicts: [],
+      shortfall: 0,
+      verdict: isHoliday ? 'FERIADO' : 'OK',
+      holidayName,
+    };
+  }
 
   const demand = computeDemand(events, activeMonthly);
   const anchors = collectAnchors(usableBlocks, categories, events);
