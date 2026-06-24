@@ -22,9 +22,9 @@ export function configureNotifications(): void {
     }),
   });
   if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('default', {
+    Notifications.setNotificationChannelAsync('reminders', {
       name: 'Lembretes',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: Notifications.AndroidImportance.HIGH,
     }).catch(() => {});
   }
 }
@@ -73,7 +73,7 @@ export async function rescheduleNotifications(): Promise<void> {
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: n.when,
-          channelId: 'default',
+          channelId: 'reminders',
         },
       });
     }

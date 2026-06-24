@@ -49,6 +49,10 @@ O perfil `preview` do `eas.json` gera um **APK universal** instalável direto (`
 
 > Projeto EAS: `@silvajv_7/chronotask` (`extra.eas.projectId` em `app.json`). O keystore é gerado e guardado pelo EAS no primeiro build — não apague nem perca esse projeto, ou as próximas versões assinarão com outra chave e não atualizarão por cima da instalada.
 
+### Lembretes não disparam na hora?
+
+Os lembretes usam **alarme exato** (`SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM` no `app.json`) — disparam no horário mesmo com a tela apagada/Doze. Mas alguns fabricantes (Xiaomi/MIUI, Samsung, Motorola, Oppo) matam o app em segundo plano por otimização de bateria, atrasando ou bloqueando os alarmes. Se um testador relatar atraso, peça para, nas configurações do sistema: **Bateria → desativar otimização** para o ChronoTask (ou marcar "sem restrições"). O cálculo do horário é correto; o que atrasa é a otimização de bateria do aparelho.
+
 ---
 
 ## Estrutura
