@@ -3,8 +3,8 @@ import { Text, TouchableOpacity } from 'react-native';
 import type { ColorValue } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 
-function TabIcon({ label }: { label: string; color: ColorValue }) {
-  return <Text style={{ fontSize: 18 }}>{label}</Text>;
+function TabIcon({ label, color }: { label: string; color: ColorValue }) {
+  return <Text style={{ fontSize: 18, color }}>{label}</Text>;
 }
 
 function SettingsButton() {

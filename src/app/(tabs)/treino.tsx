@@ -13,15 +13,6 @@ import {
   getTrainingDays,
 } from '@/repositories/trainingRepo';
 
-const PRINCIPLES = [
-  'Foco em 1–5 reps nos principais.',
-  'Pare com ~1 rep na reserva (RIR 1).',
-  'Descanso 3–5 min nos exercícios principais.',
-  'Suba de degrau na escada quando passar de 6–8 reps.',
-  'Aquecimento dinâmico — sem alongamento estático longo antes.',
-  'Deload a cada 4–6 semanas.',
-];
-
 function Segmented({ tab, onChange }: { tab: 'hoje' | 'semana'; onChange: (t: 'hoje' | 'semana') => void }) {
   return (
     <View className="flex-row bg-gray-200 dark:bg-gray-800 rounded-lg p-0.5 mx-4 mt-3">
@@ -65,25 +56,6 @@ function ExerciseRow({ ex }: { ex: Exercise }) {
   );
 }
 
-function Principles() {
-  const [open, setOpen] = useState(false);
-  return (
-    <View className="mx-3 mt-2 mb-4 bg-white dark:bg-gray-800 rounded-xl p-3">
-      <TouchableOpacity onPress={() => setOpen((s) => !s)}>
-        <Text className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-          {open ? '▾' : '▸'} Princípios do treino
-        </Text>
-      </TouchableOpacity>
-      {open &&
-        PRINCIPLES.map((p, i) => (
-          <Text key={i} className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 leading-4">
-            • {p}
-          </Text>
-        ))}
-    </View>
-  );
-}
-
 export default function TreinoScreen() {
   const { scheme } = useTheme();
   const color = categoryColorFor('#EF4444', scheme); // Treino accent
@@ -115,7 +87,6 @@ export default function TreinoScreen() {
             {todayExercises.map((ex) => (
               <ExerciseLogCard key={ex.id} exercise={ex} date={iso} color={color} />
             ))}
-            <Principles />
           </ScrollView>
         ) : (
           <View className="flex-1 items-center justify-center px-8">
@@ -144,7 +115,6 @@ export default function TreinoScreen() {
               </View>
             </View>
           ))}
-          <Principles />
         </ScrollView>
       )}
     </SafeAreaView>
