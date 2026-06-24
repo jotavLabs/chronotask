@@ -8,7 +8,7 @@
     "scheme": "routineapp",
     "userInterfaceStyle": "automatic",
     "android": {
-      "package": "com.SEUNOME.chronotask",
+      "package": "com.jotavlabs.chronotask",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
@@ -46,7 +46,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "9f70d87d-eaf8-4fd9-8c3a-d2e22b222b29"
+        "projectId": "369b3f2d-a81a-46dd-b346-2ace0a67ad46"
       }
     },
     "owner": "silvajv_7"
