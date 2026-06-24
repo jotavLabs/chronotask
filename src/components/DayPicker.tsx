@@ -36,3 +36,33 @@ export function DayPicker({ value, onChange }: Props) {
     </ScrollView>
   );
 }
+
+interface MultiProps {
+  value: DayLabel[];
+  onToggle: (day: DayLabel) => void;
+}
+
+/** Multi-select weekday picker — toggle each day on/off (used to create a block on several days at once). */
+export function MultiDayPicker({ value, onToggle }: MultiProps) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      {DAY_LABELS.map((day) => {
+        const selected = value.includes(day);
+        return (
+          <TouchableOpacity
+            key={day}
+            onPress={() => onToggle(day)}
+            className={`px-3 py-1.5 rounded-full mr-2 border ${
+              selected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-600'
+            }`}
+          >
+            <Text className={`text-xs font-medium ${selected ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+              {selected ? '✓ ' : ''}
+              {day}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+}
