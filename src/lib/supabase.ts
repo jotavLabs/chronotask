@@ -16,6 +16,8 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        // PKCE: fluxo recomendado em mobile; protege a troca de code em OAuth/magic link.
+        flowType: 'pkce',
       },
     })
   : null;

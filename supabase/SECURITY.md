@@ -24,6 +24,8 @@ registra o que protege os dados/credenciais e o que falta fazer antes de ligar a
   primeiro desbloqueio pós-boot e fora de backups utilizáveis.
 - Cliente Supabase só é criado se `EXPO_PUBLIC_SUPABASE_URL` + `..._ANON_KEY` existirem
   (`src/lib/supabase.ts`); telas degradam graciosamente quando ausente.
+- `flowType: 'pkce'` no cliente — fluxo recomendado em mobile, protege a troca de code
+  em OAuth/magic link (já pronto para Google/Apple).
 - `.env` no `.gitignore`; `.env.example` avisa para nunca usar a service_role key.
 
 **Servidor (`supabase/schema.sql`):**
@@ -49,6 +51,7 @@ Você é o dono do projeto Supabase, logo o controlador dos dados. Antes de conf
 - **Escolher o método de login**: Google/Apple (OAuth, sem senha) ou magic link —
   ambos eliminam o manuseio de senha. E-mail+senha funciona, mas é o menos seguro dos três.
 - **Botão "sair e apagar meus dados da nuvem"** na tela de conta (direito de exclusão).
+- **Pausar/retomar `autoRefreshToken` conforme `AppState`** (refresh confiável só em foreground).
 - **Reexecutar o teste de 2 contas** após qualquer mudança de policy.
 
 ## LGPD
