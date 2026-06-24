@@ -49,6 +49,10 @@ O perfil `preview` do `eas.json` gera um **APK universal** instalável direto (`
 
 > Projeto EAS: `@silvajv_7/chronotask` (`extra.eas.projectId` em `app.json`). O keystore é gerado e guardado pelo EAS no primeiro build — não apague nem perca esse projeto, ou as próximas versões assinarão com outra chave e não atualizarão por cima da instalada.
 
+### Lembretes não disparam na hora?
+
+Os lembretes usam **alarme exato** (`SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM` no `app.json`) — disparam no horário mesmo com a tela apagada/Doze. Mas alguns fabricantes (Xiaomi/MIUI, Samsung, Motorola, Oppo) matam o app em segundo plano por otimização de bateria, atrasando ou bloqueando os alarmes. Se um testador relatar atraso, peça para, nas configurações do sistema: **Bateria → desativar otimização** para o ChronoTask (ou marcar "sem restrições"). O cálculo do horário é correto; o que atrasa é a otimização de bateria do aparelho.
+
 ---
 
 ## Estrutura
@@ -247,7 +251,7 @@ Exemplos (tempo livre 17:30–18:30): compromisso 17:30–18:00 → folga vira 1
 
 **Tema claro/escuro + Ajustes.** Tokens centralizados em `lib/theme.ts` (light/dark + `categoryColorFor`); três modos **Claro / Escuro / Seguir o sistema**, persistidos na tabela `settings` e aplicados no boot via `colorScheme` do NativeWind (`store/themeStore`). Tela **Ajustes** (rota `app/ajustes`, acessível pelo ⚙️ no header das abas): seletor de tema, links para Gerenciar rotina e Categorias & prioridades (S3), e espaço para Notificações/Backup (S6). As telas das S1–S3 já usavam classes `dark:`; a auditoria trocou os `useColorScheme` do RN por `useTheme` (reflete a escolha manual).
 
-**Aba Treino.** Schema `training_days`/`exercises`/`exercise_logs` + seed dos 4 treinos (Upper/Lower A/B → Seg/Ter/Qui/Sex). `lib/trainingResolver` (puro, testado) resolve o treino do dia. A aba mostra **Hoje** (treino do dia com séries/reps/descanso/tipo, escada de progressão expansível e **registro de reps/hold por série** com "última vez") ou aviso em dia de descanso; **Semana** lista os 4 treinos; seção de **princípios** do roteiro. Logs em `exercise_logs` via `trainingRepo`.
+**Aba Treino.** Schema `training_days`/`exercises`/`exercise_logs` — os treinos são criados pelo usuário no CRUD (nada é semeado). `lib/trainingResolver` (puro, testado) resolve o treino do dia. A aba mostra **Hoje** (treino do dia com séries/reps/descanso/tipo, escada de progressão expansível e **registro de reps/hold por série** com "última vez") ou aviso em dia de descanso; **Semana** lista os treinos cadastrados. Logs em `exercise_logs` via `trainingRepo`.
 
 **Aba Estudos.** Lê os blocos de categoria **Estudo** da rotina (Hoje e Semana). **Anotação por sessão** reaproveitando `completions.value_note` (data + bloco), mantendo o check de concluído. Sem tabela nova.
 
