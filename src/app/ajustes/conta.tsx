@@ -46,9 +46,18 @@ export default function ContaScreen() {
     return (
       <ScrollView className="flex-1 bg-gray-50 dark:bg-gray-900" contentContainerStyle={{ padding: 16 }}>
         <Card>
-          <Text className="text-sm text-gray-800 dark:text-gray-100 font-medium mb-1">Sincronização não configurada</Text>
+          <View className="flex-row items-center mb-2">
+            <Text className="text-2xl mr-2">☁️</Text>
+            <View className="bg-blue-100 dark:bg-blue-900/40 rounded-full px-2 py-0.5">
+              <Text className="text-[11px] font-semibold text-blue-700 dark:text-blue-300">Em breve</Text>
+            </View>
+          </View>
+          <Text className="text-base text-gray-900 dark:text-gray-100 font-semibold mb-1.5">Sincronização na nuvem</Text>
           <Text className="text-[13px] text-gray-500 dark:text-gray-400 leading-5">
-            Defina EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY no arquivo .env (veja .env.example) e reinicie o app.
+            Em breve você vai poder entrar com sua conta e manter sua rotina com backup na nuvem — usar o mesmo cronograma em mais de um aparelho e não perder nada ao trocar de celular.
+          </Text>
+          <Text className="text-[13px] text-gray-500 dark:text-gray-400 leading-5 mt-2">
+            Por enquanto seus dados ficam salvos neste aparelho. Para backup manual, use Ajustes › Backup (exportar/importar).
           </Text>
         </Card>
       </ScrollView>
