@@ -10,7 +10,10 @@
     "android": {
       "package": "com.jotavlabs.chronotask",
       "versionCode": 1,
-      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM", "android.permission.USE_EXACT_ALARM"],
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundColor": "#171F38"
@@ -39,7 +42,8 @@
         {
           "color": "#3B82F6"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
