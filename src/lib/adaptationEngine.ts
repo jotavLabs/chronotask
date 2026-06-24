@@ -20,6 +20,7 @@ export type EngineCategory = {
   protected: number; // 1 = never cut
   tieGroup: string | null;
   skipOnHoliday?: number; // 1 = removed from the routine on holidays (default 0)
+  fixedTime?: number; // 1 = anchored to its clock time (still cuttable, unlike protected)
 };
 
 export type EngineBlock = {
@@ -143,7 +144,7 @@ export function runCascade(
 
 // ─── anchors & conflicts ──────────────────────────────────────────────────────
 
-export type AnchorKind = 'protected' | 'sleep' | 'event';
+export type AnchorKind = 'protected' | 'sleep' | 'event' | 'fixed';
 
 export type Anchor = {
   activity: string;
@@ -195,8 +196,10 @@ export function collectAnchors(
     const cat = b.categoryId != null ? catById.get(b.categoryId) : undefined;
     const isProtected = cat?.protected === 1;
     const isSleep = cat?.name === 'Sono';
+    const isFixed = cat?.fixedTime === 1;
     if (isProtected) anchors.push(makeAnchor(b.activity, b.start, b.end, 'protected'));
     else if (isSleep) anchors.push(makeAnchor(b.activity, b.start, b.end, 'sleep'));
+    else if (isFixed) anchors.push(makeAnchor(b.activity, b.start, b.end, 'fixed'));
   }
   for (const ev of events) anchors.push(makeAnchor(ev.title, ev.start, ev.end, 'event'));
   return anchors;
@@ -214,7 +217,7 @@ export type Conflict = {
  * the UI so the user can reschedule or adjust manually.
  */
 export function detectConflicts(events: EngineEvent[], anchors: Anchor[]): Conflict[] {
-  const fixed = anchors.filter((a) => a.kind === 'protected' || a.kind === 'sleep');
+  const fixed = anchors.filter((a) => a.kind === 'protected' || a.kind === 'sleep' || a.kind === 'fixed');
   const conflicts: Conflict[] = [];
   for (const ev of events) {
     const eS = timeToMinutes(ev.start);
@@ -293,6 +296,9 @@ export function reflow(
   const catOf = (b: AdaptedBlock) => (b.categoryId != null ? catById.get(b.categoryId) : undefined);
   const isProtected = (b: AdaptedBlock) => catOf(b)?.protected === 1;
   const isSleep = (b: AdaptedBlock) => catOf(b)?.name === 'Sono';
+  // Fixed-time: anchored to its clock start like a protected block, but (unlike
+  // protected) it stays cuttable — the cascade may shorten its duration, never move it.
+  const isFixed = (b: AdaptedBlock) => catOf(b)?.fixedTime === 1 && !isProtected(b) && !isSleep(b);
 
   // window derived from the Sono block: [sonoEnd, sonoStart] (e.g. 06:00–22:00)
   const sleep = adjusted.find(isSleep);
@@ -311,6 +317,20 @@ export function reflow(
       item: {
         key: `routine-${b.id}`, refId: b.id, start: b.start, end: b.end, activity: b.activity,
         category: b.categoryName, source: 'routine', adapted: false,
+        originalDuration: b.durationMin, adaptedDuration: b.adaptedDuration, removed: false,
+      },
+    });
+  }
+  // fixed-time blocks: pinned at their clock start, end follows the adapted duration
+  for (const b of adjusted.filter((b) => isFixed(b) && b.adaptedDuration > 0)) {
+    const s = clampWin(timeToMinutes(b.start) ?? winStart);
+    const e = clampWin(s + b.adaptedDuration);
+    fixed.push({
+      start: s,
+      end: e,
+      item: {
+        key: `routine-${b.id}`, refId: b.id, start: minutesToTime(s % DAY_END), end: minutesToTime(e % DAY_END),
+        activity: b.activity, category: b.categoryName, source: 'routine', adapted: b.adaptedDuration !== b.durationMin,
         originalDuration: b.durationMin, adaptedDuration: b.adaptedDuration, removed: false,
       },
     });
@@ -340,7 +360,7 @@ export function reflow(
 
   // queue of non-anchor blocks (rigid + free), in original order
   const queue: QueueItem[] = adjusted
-    .filter((b) => !isProtected(b) && !isSleep(b) && b.adaptedDuration > 0)
+    .filter((b) => !isProtected(b) && !isSleep(b) && !isFixed(b) && b.adaptedDuration > 0)
     .map((b) => ({
       baseKey: `routine-${b.id}`, refId: b.id, source: 'routine' as const,
       activity: b.activity, category: b.categoryName,

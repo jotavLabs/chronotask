@@ -41,6 +41,11 @@ export default function CategoriasScreen() {
                 <Text className="text-xs text-gray-400 dark:text-gray-500">grupo: {item.tieGroup}</Text>
               ) : null}
             </View>
+            {item.fixedTime === 1 ? (
+              <View className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 mr-1.5">
+                <Text className="text-xs font-semibold text-amber-700 dark:text-amber-300">⏱ fixo</Text>
+              </View>
+            ) : null}
             {item.protected === 1 ? (
               <View className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40">
                 <Text className="text-xs font-semibold text-blue-700 dark:text-blue-300">protegida</Text>

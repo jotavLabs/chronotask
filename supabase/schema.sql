@@ -15,6 +15,8 @@ create table if not exists public.categories (
   tie_group   text,
   protected   integer not null default 0,
   color       text,
+  skip_on_holiday integer not null default 0,
+  fixed_time  integer not null default 0,
   updated_at  text,
   deleted     integer not null default 0,
   user_id     uuid not null default auth.uid()

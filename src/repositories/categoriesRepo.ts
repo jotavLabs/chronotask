@@ -19,6 +19,7 @@ export type CategoryInput = {
   tieGroup: string | null;
   color: string | null;
   skipOnHoliday: number;
+  fixedTime: number;
 };
 
 export function createCategory(input: CategoryInput): number {
@@ -31,6 +32,7 @@ export function createCategory(input: CategoryInput): number {
       tieGroup: input.tieGroup?.trim() || null,
       color: input.color,
       skipOnHoliday: input.skipOnHoliday,
+      fixedTime: input.fixedTime,
     })
     .returning({ id: categories.id })
     .get();
@@ -47,6 +49,7 @@ export function updateCategory(id: number, input: CategoryInput): void {
       tieGroup: input.tieGroup?.trim() || null,
       color: input.color,
       skipOnHoliday: input.skipOnHoliday,
+      fixedTime: input.fixedTime,
     })
     .where(eq(categories.id, id))
     .run();
@@ -64,7 +67,7 @@ export function getOrCreateCategoryByName(name: string): number {
     .where(and(eq(categories.name, name), eq(categories.deleted, 0)))
     .get();
   if (existing) return existing.id;
-  return createCategory({ name, cutOrder: null, protected: 0, tieGroup: null, color: null, skipOnHoliday: 0 });
+  return createCategory({ name, cutOrder: null, protected: 0, tieGroup: null, color: null, skipOnHoliday: 0, fixedTime: 0 });
 }
 
 /** How many blocks/events/monthly routines reference this category. */
