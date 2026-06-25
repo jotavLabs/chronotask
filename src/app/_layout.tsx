@@ -85,7 +85,6 @@ function MobileApp() {
         <Stack.Screen name="gerenciar" options={{ headerShown: false }} />
         <Stack.Screen name="ajustes" options={{ headerShown: false }} />
         <Stack.Screen name="estatisticas" options={{ headerShown: false }} />
-        <Stack.Screen name="chat" options={{ headerShown: false }} />
       </Stack>
       <WeekPrompt />
     </>

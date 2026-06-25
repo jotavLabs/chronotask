@@ -1,7 +1,8 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-// Sync columns (S7) shared by every domain table. updated_at is maintained by
-// triggers; deleted=1 is a soft delete that propagates to the cloud.
+// Soft-delete + timestamp columns shared by every domain table. updated_at is
+// kept by triggers; deleted=1 is the app-wide soft delete (rows are filtered by
+// deleted=0 in every repository).
 const syncCols = {
   updatedAt: text('updated_at'),
   deleted: integer('deleted').notNull().default(0),
@@ -131,12 +132,6 @@ export const exerciseLogs = sqliteTable('exercise_logs', {
   note: text('note'),
   loggedAt: text('logged_at').notNull(),
   ...syncCols,
-});
-
-// Local-only sync cursor / account info (not synced)
-export const syncState = sqliteTable('sync_state', {
-  key: text('key').primaryKey(),
-  value: text('value').notNull(),
 });
 
 // Rotation / sequence of models (S9C)
