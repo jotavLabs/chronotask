@@ -20,8 +20,8 @@ export const categories = sqliteTable('categories', {
   ...syncCols,
 });
 
-// Saved routine models (S9). Each block belongs to a model; which model applies
-// on a date is decided by lib/scheduling (rotation/assignments).
+// Saved routine models (S9). Each block belongs to a model; the active model is
+// the one being edited (settings editing_model_id) — used for every day.
 export const routineModels = sqliteTable('routine_models', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
@@ -134,35 +134,8 @@ export const exerciseLogs = sqliteTable('exercise_logs', {
   ...syncCols,
 });
 
-// Rotation / sequence of models (S9C)
-export const rotation = sqliteTable('rotation', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  enabled: integer('enabled').notNull().default(0),
-  mode: text('mode').notNull().default('loop'),
-  period: text('period').notNull().default('weekly'), // weekly | monthly
-  anchorDate: text('anchor_date'),
-  ...syncCols,
-});
-
-export const rotationItems = sqliteTable('rotation_items', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  position: integer('position').notNull().default(0),
-  modelId: integer('model_id').notNull(),
-  ...syncCols,
-});
-
-export const weekAssignments = sqliteTable('week_assignments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  periodStart: text('period_start').notNull(),
-  modelId: integer('model_id').notNull(),
-  ...syncCols,
-});
-
 export type Category = typeof categories.$inferSelect;
 export type RoutineModel = typeof routineModels.$inferSelect;
-export type Rotation = typeof rotation.$inferSelect;
-export type RotationItem = typeof rotationItems.$inferSelect;
-export type WeekAssignment = typeof weekAssignments.$inferSelect;
 export type RoutineBlock = typeof routineBlocks.$inferSelect;
 export type MonthlyRoutine = typeof monthlyRoutines.$inferSelect;
 export type Event = typeof events.$inferSelect;

@@ -1,6 +1,6 @@
 // Pure backup (de)serialization. The service handles files/sharing/picker.
 
-export const SCHEMA_VERSION = 7; // current migration idx (m0007: categories.fixed_time)
+export const SCHEMA_VERSION = 8; // backup format version (8: removed rotation/sequence tables)
 
 export type BackupData = {
   settings: unknown[];
@@ -14,9 +14,6 @@ export type BackupData = {
   training_days: unknown[];
   exercises: unknown[];
   exercise_logs: unknown[];
-  rotation: unknown[];
-  rotation_items: unknown[];
-  week_assignments: unknown[];
 };
 
 export type BackupFile = { version: number; exportedAt: string; data: BackupData };
@@ -24,7 +21,6 @@ export type BackupFile = { version: number; exportedAt: string; data: BackupData
 export const TABLE_KEYS: (keyof BackupData)[] = [
   'settings', 'categories', 'routine_models', 'routine_blocks', 'monthly_routines', 'events',
   'holidays', 'completions', 'training_days', 'exercises', 'exercise_logs',
-  'rotation', 'rotation_items', 'week_assignments',
 ];
 
 export function buildBackup(data: BackupData): BackupFile {

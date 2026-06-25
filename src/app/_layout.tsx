@@ -4,7 +4,6 @@ import { Stack } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { StartChoice } from '@/components/StartChoice';
-import { WeekPrompt } from '@/components/WeekPrompt';
 import { db } from '@/db/client';
 import { backfillTopics } from '@/db/backfillTopics';
 import migrations from '@/db/migrations';
@@ -79,15 +78,12 @@ function MobileApp() {
   }
 
   return (
-    <>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="gerenciar" options={{ headerShown: false }} />
-        <Stack.Screen name="ajustes" options={{ headerShown: false }} />
-        <Stack.Screen name="estatisticas" options={{ headerShown: false }} />
-      </Stack>
-      <WeekPrompt />
-    </>
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="gerenciar" options={{ headerShown: false }} />
+      <Stack.Screen name="ajustes" options={{ headerShown: false }} />
+      <Stack.Screen name="estatisticas" options={{ headerShown: false }} />
+    </Stack>
   );
 }
 
