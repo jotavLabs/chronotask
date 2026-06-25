@@ -1,8 +1,10 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { buildNotificationPlan } from '@/lib/notifications';
+import { toIsoDate } from '@/lib/dayResolver';
+import { buildEventReminders, buildNotificationPlan } from '@/lib/notifications';
 import { getMonthlyStatus } from '@/lib/recurrence';
 import { loadAdaptedDay } from '@/repositories/adaptedDayRepo';
+import { getEventsByDate } from '@/repositories/eventsRepo';
 import { getAllMonthly } from '@/repositories/monthlyRoutinesRepo';
 import { getNotifPrefs } from '@/repositories/settingsRepo';
 
@@ -66,7 +68,16 @@ export async function rescheduleNotifications(): Promise<void> {
       windowEndDay: m.windowEndDay,
     }));
     const plan = buildNotificationPlan(date, adapted, monthlyNotif, prefs);
-    for (const n of plan) {
+    const eventReminders = buildEventReminders(
+      getEventsByDate(toIsoDate(date)).map((e) => ({
+        title: e.title,
+        start: e.start,
+        end: e.end,
+        reminderMin: e.reminderMin,
+      })),
+      date,
+    );
+    for (const n of [...plan, ...eventReminders]) {
       if (n.when.getTime() <= now.getTime()) continue;
       await Notifications.scheduleNotificationAsync({
         content: { title: n.title, body: n.body },

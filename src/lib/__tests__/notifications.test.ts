@@ -36,10 +36,10 @@ describe('buildNotificationPlan', () => {
     expect(buildNotificationPlan(DATE, day(TIMELINE), [], { ...DEFAULT_NOTIF_PREFS, enabled: false })).toEqual([]);
   });
 
-  it('scope "importantes" = Treino/Estudo/Cardio + events (no Trabalho/Lazer)', () => {
+  it('scope "importantes" = Treino/Estudo/Cardio (events have their own per-event reminders)', () => {
     const p = buildNotificationPlan(DATE, day(TIMELINE), [], prefs({ scope: 'importantes', dailySummary: false }));
     const titles = p.filter((n) => n.type === 'block').map((n) => n.title);
-    expect(titles).toEqual(['Estudo matinal', 'Treino', 'Reunião']);
+    expect(titles).toEqual(['Estudo matinal', 'Treino']);
   });
 
   it('scope "todos" includes every non-sleep block', () => {

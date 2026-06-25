@@ -121,6 +121,8 @@ export type EventFormInput = {
   title: string;
   categoryId: number | null;
   priority: string;
+  recurrence?: string;
+  reminderMin?: number;
 };
 
 export function validateEvent(input: EventFormInput): ValidationResult {

@@ -8,6 +8,8 @@ import { FormField } from '@/components/FormField';
 import { PriorityPicker } from '@/components/PriorityPicker';
 import { TimeInput } from '@/components/TimeInput';
 import { toIsoDate } from '@/lib/dayResolver';
+import { RECURRENCE_LABEL } from '@/lib/recurrence';
+import type { EventRecurrence } from '@/lib/recurrence';
 import { computeDuration, formatDuration, validateEvent } from '@/lib/validation';
 import { getAllCategories } from '@/repositories/categoriesRepo';
 import {
@@ -19,6 +21,32 @@ import {
 
 const INPUT =
   'border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white bg-white dark:bg-gray-800';
+
+const RECUR_OPTIONS = ['none', 'weekly', 'monthly', 'yearly'] as const;
+const REMINDER_OPTIONS: { v: number; label: string }[] = [
+  { v: -1, label: 'Sem lembrete' },
+  { v: 0, label: 'No horário' },
+  { v: 5, label: '5 min' },
+  { v: 10, label: '10 min' },
+  { v: 15, label: '15 min' },
+  { v: 30, label: '30 min' },
+  { v: 60, label: '1 h' },
+];
+
+function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className={`px-3 py-1.5 rounded-full mr-2 mb-2 border ${
+        selected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-600'
+      }`}
+    >
+      <Text className={`text-xs font-medium ${selected ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function EventoForm() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -33,6 +61,8 @@ export default function EventoForm() {
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [priority, setPriority] = useState('Média');
+  const [recurrence, setRecurrence] = useState<EventRecurrence>('none');
+  const [reminderMin, setReminderMin] = useState(-1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -46,13 +76,15 @@ export default function EventoForm() {
       setTitle(e.title);
       setCategoryId(e.categoryId);
       setPriority(e.priority ?? 'Média');
+      setRecurrence((e.recurrence as EventRecurrence) ?? 'none');
+      setReminderMin(e.reminderMin ?? -1);
     }
   }, [eventId]);
 
   const duration = computeDuration(start, end);
 
   function handleSave() {
-    const input = { date, start, end, title, categoryId, priority };
+    const input = { date, start, end, title, categoryId, priority, recurrence, reminderMin };
     const result = validateEvent(input);
     if (!result.ok) {
       setErrors(result.errors);
@@ -110,6 +142,22 @@ export default function EventoForm() {
 
       <FormField label="Prioridade">
         <PriorityPicker value={priority} onChange={setPriority} />
+      </FormField>
+
+      <FormField label="Repetir">
+        <View className="flex-row flex-wrap">
+          {RECUR_OPTIONS.map((r) => (
+            <Chip key={r} label={RECURRENCE_LABEL[r]} selected={recurrence === r} onPress={() => setRecurrence(r)} />
+          ))}
+        </View>
+      </FormField>
+
+      <FormField label="Lembrete">
+        <View className="flex-row flex-wrap">
+          {REMINDER_OPTIONS.map((o) => (
+            <Chip key={o.v} label={o.label} selected={reminderMin === o.v} onPress={() => setReminderMin(o.v)} />
+          ))}
+        </View>
       </FormField>
 
       <TouchableOpacity onPress={handleSave} className="bg-blue-600 rounded-lg py-3 items-center mt-2">

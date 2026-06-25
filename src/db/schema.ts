@@ -67,6 +67,8 @@ export const events = sqliteTable('events', {
   categoryId: integer('category_id').references(() => categories.id),
   durationMin: integer('duration_min').notNull(),
   priority: text('priority'),
+  recurrence: text('recurrence').notNull().default('none'), // none | weekly | monthly | yearly
+  reminderMin: integer('reminder_min').notNull().default(-1), // -1 sem lembrete; 0 no horário; N min antes
   ...syncCols,
 });
 
