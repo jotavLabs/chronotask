@@ -164,6 +164,14 @@ export default function SemanaScreen() {
           }
         />
       )}
+
+      <TouchableOpacity
+        onPress={() => router.push({ pathname: '/gerenciar/evento-form', params: { date: selectedIso } })}
+        className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-blue-600 items-center justify-center"
+        style={{ elevation: 4 }}
+      >
+        <Text className="text-white text-3xl -mt-0.5">+</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }

@@ -49,13 +49,13 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
 }
 
 export default function EventoForm() {
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; date?: string }>();
   const eventId = params.id ? Number(params.id) : null;
   const editing = eventId != null;
 
   const categories = useMemo(() => getAllCategories(), []);
 
-  const [date, setDate] = useState(() => toIsoDate(new Date()));
+  const [date, setDate] = useState(() => params.date ?? toIsoDate(new Date()));
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [title, setTitle] = useState('');
