@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { CategoryPicker } from '@/components/CategoryPicker';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { DayPicker } from '@/components/DayPicker';
+import { DayPicker, MultiDayPicker } from '@/components/DayPicker';
 import { FormField } from '@/components/FormField';
 import { TimeInput } from '@/components/TimeInput';
 import type { DayLabel } from '@/lib/dayResolver';
@@ -27,6 +27,7 @@ export default function BlocoForm() {
   const categories = useMemo(() => getAllCategories(), []);
 
   const [dayLabel, setDayLabel] = useState<DayLabel>((params.dayLabel as DayLabel) ?? 'Seg');
+  const [days, setDays] = useState<DayLabel[]>([(params.dayLabel as DayLabel) ?? 'Seg']);
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [activity, setActivity] = useState('');
@@ -60,15 +61,34 @@ export default function BlocoForm() {
   const eMin = timeToMinutes(end);
   const wraps = sMin != null && eMin != null && eMin <= sMin;
 
+  function toggleDay(d: DayLabel) {
+    setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
+  }
+
   function handleSave() {
-    const input = { dayLabel, start, end, activity, categoryId, note };
-    const result = validateBlock(input);
+    if (editing && blockId != null) {
+      const input = { dayLabel, start, end, activity, categoryId, note };
+      const result = validateBlock(input);
+      if (!result.ok) {
+        setErrors(result.errors);
+        return;
+      }
+      updateBlock(blockId, input);
+      router.back();
+      return;
+    }
+    // create: one block per selected weekday (same time/activity/category)
+    if (days.length === 0) {
+      setErrors((e) => ({ ...e, days: 'Selecione ao menos um dia' }));
+      return;
+    }
+    const base = { start, end, activity, categoryId, note };
+    const result = validateBlock(base);
     if (!result.ok) {
       setErrors(result.errors);
       return;
     }
-    if (editing && blockId != null) updateBlock(blockId, input);
-    else createBlock(input);
+    for (const d of days) createBlock({ ...base, dayLabel: d });
     router.back();
   }
 
@@ -82,9 +102,15 @@ export default function BlocoForm() {
     <ScrollView className="flex-1 bg-gray-50 dark:bg-gray-900" contentContainerStyle={{ padding: 16 }}>
       <Stack.Screen options={{ title: editing ? 'Editar bloco' : 'Novo bloco' }} />
 
-      <FormField label="Dia">
-        <DayPicker value={dayLabel} onChange={setDayLabel} />
-      </FormField>
+      {editing ? (
+        <FormField label="Dia">
+          <DayPicker value={dayLabel} onChange={setDayLabel} />
+        </FormField>
+      ) : (
+        <FormField label="Dias (marque um ou mais)" error={errors.days}>
+          <MultiDayPicker value={days} onToggle={toggleDay} />
+        </FormField>
+      )}
 
       <View className="flex-row">
         <View className="flex-1 mr-2">

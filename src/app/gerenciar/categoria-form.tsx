@@ -31,6 +31,7 @@ export default function CategoriaForm() {
   const [cutOrder, setCutOrder] = useState<number>(1);
   const [tieGroup, setTieGroup] = useState('');
   const [skipOnHoliday, setSkipOnHoliday] = useState(false);
+  const [fixedTime, setFixedTime] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [usageBlock, setUsageBlock] = useState<number | null>(null);
@@ -45,6 +46,7 @@ export default function CategoriaForm() {
       setCutOrder(c.cutOrder ?? 1);
       setTieGroup(c.tieGroup ?? '');
       setSkipOnHoliday(c.skipOnHoliday === 1);
+      setFixedTime(c.fixedTime === 1);
     }
   }, [catId]);
 
@@ -69,6 +71,7 @@ export default function CategoriaForm() {
       tieGroup,
       color,
       skipOnHoliday: skipOnHoliday ? 1 : 0,
+      fixedTime: fixedTime ? 1 : 0,
     };
     if (editing && catId != null) updateCategory(catId, input);
     else createCategory(input);
@@ -137,6 +140,16 @@ export default function CategoriaForm() {
           </Text>
         </View>
         <Switch value={skipOnHoliday} onValueChange={setSkipOnHoliday} />
+      </View>
+
+      <View className="flex-row items-center justify-between py-2 mb-2">
+        <View className="flex-1 pr-3">
+          <Text className="text-sm font-medium text-gray-800 dark:text-gray-100">Horário fixo</Text>
+          <Text className="text-xs text-gray-400 dark:text-gray-500">
+            Os blocos ficam no horário que você marcou, em vez de fluírem na sequência do dia (ainda podem encurtar em dia cheio)
+          </Text>
+        </View>
+        <Switch value={fixedTime} onValueChange={setFixedTime} />
       </View>
 
       {!isProtected && (

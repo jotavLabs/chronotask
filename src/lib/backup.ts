@@ -1,6 +1,6 @@
 // Pure backup (de)serialization. The service handles files/sharing/picker.
 
-export const SCHEMA_VERSION = 6; // current migration idx (m0006: models + rotation)
+export const SCHEMA_VERSION = 7; // current migration idx (m0007: categories.fixed_time)
 
 export type BackupData = {
   settings: unknown[];

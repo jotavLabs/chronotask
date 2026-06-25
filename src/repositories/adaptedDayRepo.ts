@@ -37,6 +37,7 @@ export function loadAdaptedDay(date: Date): AdaptedDay {
     protected: c.protected,
     tieGroup: c.tieGroup,
     skipOnHoliday: c.skipOnHoliday,
+    fixedTime: c.fixedTime,
   }));
 
   const events = getEventsByDate(iso).map((e) => ({

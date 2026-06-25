@@ -2,6 +2,7 @@ import { Link, Tabs } from 'expo-router';
 import { Text, TouchableOpacity } from 'react-native';
 import type { ColorValue } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
+import { useTabsStore } from '@/store/tabsStore';
 
 function TabIcon({ label, color }: { label: string; color: ColorValue }) {
   return <Text style={{ fontSize: 18, color }}>{label}</Text>;
@@ -19,6 +20,8 @@ function SettingsButton() {
 
 export default function TabsLayout() {
   const { scheme, tokens } = useTheme();
+  const showTraining = useTabsStore((s) => s.showTraining);
+  const showStudies = useTabsStore((s) => s.showStudies);
   const inactive = scheme === 'dark' ? '#6B7280' : '#9CA3AF';
 
   return (
@@ -35,8 +38,14 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: 'Hoje', tabBarIcon: (p) => <TabIcon label="☀️" color={p.color} /> }} />
       <Tabs.Screen name="semana" options={{ title: 'Semana', tabBarIcon: (p) => <TabIcon label="📅" color={p.color} /> }} />
-      <Tabs.Screen name="treino" options={{ title: 'Treino', tabBarIcon: (p) => <TabIcon label="💪" color={p.color} /> }} />
-      <Tabs.Screen name="estudos" options={{ title: 'Estudos', tabBarIcon: (p) => <TabIcon label="📚" color={p.color} /> }} />
+      <Tabs.Screen
+        name="treino"
+        options={{ title: 'Treino', tabBarIcon: (p) => <TabIcon label="💪" color={p.color} />, href: showTraining ? undefined : null }}
+      />
+      <Tabs.Screen
+        name="estudos"
+        options={{ title: 'Estudos', tabBarIcon: (p) => <TabIcon label="📚" color={p.color} />, href: showStudies ? undefined : null }}
+      />
       <Tabs.Screen name="mais" options={{ title: 'Mais', tabBarIcon: (p) => <TabIcon label="⋯" color={p.color} /> }} />
     </Tabs>
   );
