@@ -9,6 +9,7 @@ import migrations from '@/db/migrations';
 import { runSeed } from '@/db/seed';
 import { autoBackupIfDue } from '@/services/backupService';
 import { configureNotifications, rescheduleNotifications } from '@/services/notificationService';
+import { useModeStore } from '@/store/modeStore';
 import { useTabsStore } from '@/store/tabsStore';
 import { useThemeStore } from '@/store/themeStore';
 
@@ -44,6 +45,7 @@ function MobileApp() {
         backfillTopics();
         useThemeStore.getState().init();
         useTabsStore.getState().init();
+        useModeStore.getState().init();
         configureNotifications();
         void rescheduleNotifications();
         void autoBackupIfDue();

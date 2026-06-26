@@ -10,6 +10,7 @@ import { buildHolidayDateSet, buildHolidayMap, getAllCategories } from './catego
 import { getModelIdForDate } from './schedulingRepo';
 import { getEventsByDate } from './eventsRepo';
 import { getAllMonthly } from './monthlyRoutinesRepo';
+import { getAppMode } from './settingsRepo';
 
 export function loadAdaptedDay(date: Date): AdaptedDay {
   const iso = toIsoDate(date);
@@ -59,7 +60,7 @@ export function loadAdaptedDay(date: Date): AdaptedDay {
       categoryName: m.categoryName,
     }));
 
-  return buildAdaptedDay({ date: iso, dayLabel, isHoliday, blocks, categories, events, activeMonthly, holidayName });
+  return buildAdaptedDay({ date: iso, dayLabel, isHoliday, blocks, categories, events, activeMonthly, holidayName, mode: getAppMode() });
 }
 
 /**

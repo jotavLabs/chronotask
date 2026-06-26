@@ -12,6 +12,7 @@ import { getDatesWithExtras } from '@/repositories/adaptedDayRepo';
 import { applyReorder } from '@/repositories/blocksRepo';
 import { buildHolidayDateSet } from '@/repositories/categoriesRepo';
 import { getModelIdForDate } from '@/repositories/schedulingRepo';
+import { useModeStore } from '@/store/modeStore';
 import { useRoutineStore } from '@/store/routineStore';
 
 function isoToDate(iso: string): Date {
@@ -33,6 +34,7 @@ export default function SemanaScreen() {
   const selectedIsHoliday = holidayDates.has(selectedIso);
 
   const { days, dates, loadDay, loadDoneForDate, toggleBlock } = useRoutineStore();
+  const mode = useModeStore((s) => s.mode);
   const [extras, setExtras] = useState<Set<string>>(new Set());
   const [reordering, setReordering] = useState(false);
 
@@ -132,7 +134,7 @@ export default function SemanaScreen() {
           )}
         </View>
         <View className="flex-row items-center">
-          {blocks.length > 0 && (
+          {mode === 'rotina' && blocks.length > 0 && (
             <TouchableOpacity
               onPress={() => setReordering((r) => !r)}
               className={`px-3 py-1.5 rounded-full mr-2 ${reordering ? 'bg-blue-600' : 'bg-gray-100 dark:bg-gray-800'}`}

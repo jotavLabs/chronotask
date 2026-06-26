@@ -669,6 +669,7 @@ export type AdaptedDayDeps = {
   events: EngineEvent[];
   activeMonthly: EngineMonthly[];
   holidayName?: string | null;
+  mode?: 'agenda' | 'rotina'; // 'agenda' = free placement; 'rotina' = engine. Omitted in tests.
 };
 
 export type AdaptedDay = {
@@ -745,11 +746,16 @@ export function buildAdaptedDay(deps: AdaptedDayDeps): AdaptedDay {
     ? blocks.filter((b) => (b.categoryId == null ? true : catById.get(b.categoryId)?.skipOnHoliday !== 1))
     : blocks;
 
-  // No day window (no Sono block) → free placement: every block/event keeps its own
-  // clock time, no 06:00–22:00 barrier, no contiguous fill. The user defines a window by
-  // adding a Sono block; without it the day is fully flexible (blocks anywhere).
-  const hasWindow = usableBlocks.some((b) => b.categoryId != null && catById.get(b.categoryId)?.name === 'Sono');
-  if (!hasWindow) {
+  // Agenda mode (default): free placement — every block/event keeps its own clock time,
+  // no engine, no 06:00–22:00 barrier. Rotina mode runs the adaptation engine (cascade/
+  // reflow) with the window from the Sono block (or the 06:00–22:00 default). When
+  // deps.mode is omitted (unit tests), fall back to the legacy heuristic: engine only
+  // when a Sono block exists.
+  const isRotina =
+    deps.mode != null
+      ? deps.mode === 'rotina'
+      : usableBlocks.some((b) => b.categoryId != null && catById.get(b.categoryId)?.name === 'Sono');
+  if (!isRotina) {
     return {
       date,
       mode: isHoliday ? 'FERIADO' : 'NORMAL',

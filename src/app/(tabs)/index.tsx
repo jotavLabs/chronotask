@@ -15,6 +15,7 @@ import { applyReorder, getBlocksForDay } from '@/repositories/blocksRepo';
 import type { BlockWithCategory } from '@/repositories/blocksRepo';
 import { getAllCategories } from '@/repositories/categoriesRepo';
 import { getModelIdForDate } from '@/repositories/schedulingRepo';
+import { useModeStore } from '@/store/modeStore';
 import { useRoutineStore } from '@/store/routineStore';
 
 function isoToDate(iso: string): Date {
@@ -54,10 +55,10 @@ export default function HojeScreen() {
 
   const doneIds = dates[iso] ?? new Set<number>();
   const isToday = iso === toIsoDate(new Date());
-  // reorder (which repacks times) only makes sense within a window; in free placement
-  // (no Sono block) blocks keep their own clock times, so drag-reorder is hidden.
-  const windowed = baseBlocks.some((b) => b.categoryName === 'Sono');
-  const isClean = day != null && day.verdict === 'OK' && windowed;
+  // reorder (which repacks times) only makes sense in rotina mode (engine active);
+  // in agenda mode blocks keep their own clock times, so drag-reorder is hidden.
+  const mode = useModeStore((s) => s.mode);
+  const isClean = day != null && day.verdict === 'OK' && mode === 'rotina';
 
   function onReorderToday(ids: number[]) {
     const modelId = getModelIdForDate(date);

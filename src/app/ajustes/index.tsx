@@ -7,9 +7,10 @@ import { THEME_MODES } from '@/lib/theme';
 import { findModelRedundantIds, removeBlocks } from '@/repositories/blocksRepo';
 import { getEditingModelId, getModelById } from '@/repositories/modelsRepo';
 import { getLastBackupAt, getNotifPrefs, setNotifPrefs } from '@/repositories/settingsRepo';
-import { clearExampleData } from '@/repositories/templatesRepo';
+import { applyGenericIfEmpty, clearExampleData } from '@/repositories/templatesRepo';
 import { applyBackup, disableAutoBackup, enableAutoBackup, exportBackup, getLastAutoBackupAt, isAutoBackupOn, pickBackup } from '@/services/backupService';
 import { requestNotifPermission, rescheduleNotifications } from '@/services/notificationService';
+import { useModeStore } from '@/store/modeStore';
 import { useTabsStore } from '@/store/tabsStore';
 import { useThemeStore } from '@/store/themeStore';
 
@@ -93,6 +94,8 @@ const SCOPE_LABEL: Record<NotifScope, string> = {
 export default function AjustesScreen() {
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
+  const appMode = useModeStore((s) => s.mode);
+  const setAppModeStore = useModeStore((s) => s.setMode);
   const showTraining = useTabsStore((s) => s.showTraining);
   const showStudies = useTabsStore((s) => s.showStudies);
   const setShowTraining = useTabsStore((s) => s.setShowTraining);
@@ -158,6 +161,19 @@ export default function AjustesScreen() {
     }
   }
 
+  function onSelectMode(m: 'agenda' | 'rotina') {
+    if (m === appMode) return;
+    if (m === 'rotina') {
+      const applied = applyGenericIfEmpty();
+      setAppModeStore('rotina');
+      if (applied) {
+        Alert.alert('Modo rotina', 'Apliquei uma rotina genérica em todos os dias. Edite os blocos em Gerenciar → Blocos.');
+      }
+    } else {
+      setAppModeStore('agenda');
+    }
+  }
+
   function onRemoveOverflow() {
     const modelId = getEditingModelId();
     const name = getModelById(modelId)?.name ?? 'modelo';
@@ -219,6 +235,32 @@ export default function AjustesScreen() {
 
   return (
     <ScrollView className="flex-1 bg-gray-50 dark:bg-gray-900" contentContainerStyle={{ padding: 16 }}>
+      <SectionTitle>Modo do app</SectionTitle>
+      <Card>
+        <View className="flex-row p-3">
+          {(['agenda', 'rotina'] as const).map((m) => {
+            const selected = appMode === m;
+            return (
+              <TouchableOpacity
+                key={m}
+                onPress={() => onSelectMode(m)}
+                className={`flex-1 mx-1 py-2 rounded-lg items-center border ${
+                  selected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-600'
+                }`}
+              >
+                <Text className={`text-sm font-semibold ${selected ? 'text-white' : 'text-gray-700 dark:text-gray-200'}`}>
+                  {m === 'agenda' ? 'Agenda' : 'Rotina'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </Card>
+      <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 px-1">
+        Agenda: cada bloco/compromisso fica no horário definido. Rotina: o dia vira uma rotina
+        adaptável — o app reorganiza ao redor dos compromissos e você pode reordenar arrastando.
+      </Text>
+
       <SectionTitle>Aparência</SectionTitle>
       <Card>
         {THEME_MODES.map((opt, i) => {
