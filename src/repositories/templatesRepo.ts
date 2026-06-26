@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { completions, exerciseLogs, exercises, monthlyRoutines, routineBlocks, trainingDays } from '@/db/schema';
 import { getTemplate } from '@/lib/templates';
@@ -56,4 +56,22 @@ export function applyTemplate(templateId: string, opts: { replace: boolean; mode
       tx.insert(routineBlocks).values(rows.slice(i, i + 50)).run();
     }
   });
+}
+
+/** True when the editing model has no routine blocks. */
+export function routineIsEmpty(modelId: number = getEditingModelId()): boolean {
+  return (
+    db
+      .select({ id: routineBlocks.id })
+      .from(routineBlocks)
+      .where(and(eq(routineBlocks.modelId, modelId), eq(routineBlocks.deleted, 0)))
+      .all().length === 0
+  );
+}
+
+/** Fills an empty routine with the generic template (used when entering 'rotina' mode). */
+export function applyGenericIfEmpty(): boolean {
+  if (!routineIsEmpty()) return false;
+  applyTemplate('generica', { replace: false });
+  return true;
 }

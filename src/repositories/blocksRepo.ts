@@ -20,6 +20,7 @@ export type BlockWithCategory = {
   note: string | null;
   sortOrder: number;
   topic: string | null;
+  important: number;
   categoryName: string | null;
   categoryColor: string | null;
 };
@@ -32,6 +33,7 @@ export type BlockInput = {
   activity: string;
   categoryId: number | null;
   note?: string | null;
+  important?: number;
 };
 
 export function getBlocksForDay(dayLabel: string, modelId: number = getEditingModelId()): BlockWithCategory[] {
@@ -47,6 +49,7 @@ export function getBlocksForDay(dayLabel: string, modelId: number = getEditingMo
       note: routineBlocks.note,
       sortOrder: routineBlocks.sortOrder,
       topic: routineBlocks.topic,
+      important: routineBlocks.important,
       categoryName: categories.name,
       categoryColor: categories.color,
     })
@@ -99,6 +102,7 @@ export function createBlock(input: BlockInput): number {
       activity: input.activity.trim(),
       categoryId: input.categoryId,
       note: input.note?.trim() || null,
+      important: input.important ?? 0,
       sortOrder: nextSortOrder(input.dayLabel, modelId),
     })
     .returning({ id: routineBlocks.id })
@@ -118,6 +122,7 @@ export function updateBlock(id: number, input: BlockInput): void {
       activity: input.activity.trim(),
       categoryId: input.categoryId,
       note: input.note?.trim() || null,
+      important: input.important ?? 0,
     })
     .where(eq(routineBlocks.id, id))
     .run();
@@ -203,6 +208,16 @@ export function findModelRedundantIds(modelId: number): number[] {
     ids.push(...findRedundantBlockIds(blocks));
   }
   return ids;
+}
+
+/** Block ids flagged important in the editing model (drives the "importantes" reminders). */
+export function getImportantBlockIds(modelId: number = getEditingModelId()): Set<number> {
+  const rows = db
+    .select({ id: routineBlocks.id })
+    .from(routineBlocks)
+    .where(and(eq(routineBlocks.modelId, modelId), eq(routineBlocks.important, 1), eq(routineBlocks.deleted, 0)))
+    .all();
+  return new Set(rows.map((r) => r.id));
 }
 
 /** Soft-deletes the given blocks (and their completions), like deleteBlock in bulk. */

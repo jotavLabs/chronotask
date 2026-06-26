@@ -35,6 +35,16 @@ export function setThemeMode(mode: ThemeMode): void {
   setSetting(THEME_KEY, mode);
 }
 
+export type AppMode = 'agenda' | 'rotina';
+
+export function getAppMode(): AppMode {
+  return getSetting('app_mode') === 'rotina' ? 'rotina' : 'agenda';
+}
+
+export function setAppMode(mode: AppMode): void {
+  setSetting('app_mode', mode);
+}
+
 // ─── notification prefs ───────────────────────────────────────────────────────
 
 export function getNotifPrefs(): NotifPrefs {

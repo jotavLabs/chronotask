@@ -11,10 +11,11 @@ import type { AdaptedDay } from '@/lib/adaptationEngine';
 import { resolveDayLabel, toIsoDate } from '@/lib/dayResolver';
 import { formatDuration } from '@/lib/validation';
 import { loadAdaptedDay } from '@/repositories/adaptedDayRepo';
-import { applyReorder, getBlocksForDay } from '@/repositories/blocksRepo';
+import { applyReorder, getBlocksForDay, getImportantBlockIds } from '@/repositories/blocksRepo';
 import type { BlockWithCategory } from '@/repositories/blocksRepo';
 import { getAllCategories } from '@/repositories/categoriesRepo';
 import { getModelIdForDate } from '@/repositories/schedulingRepo';
+import { useModeStore } from '@/store/modeStore';
 import { useRoutineStore } from '@/store/routineStore';
 
 function isoToDate(iso: string): Date {
@@ -28,7 +29,8 @@ export default function HojeScreen() {
   const [day, setDay] = useState<AdaptedDay | null>(null);
   const [baseBlocks, setBaseBlocks] = useState<BlockWithCategory[]>([]);
   const [reordering, setReordering] = useState(false);
-  const { dates, loadDoneForDate, toggleBlock } = useRoutineStore();
+  const [importantIds, setImportantIds] = useState<Set<number>>(new Set());
+  const { dates, skipped, loadStatusForDate, cycleBlock } = useRoutineStore();
 
   // jump to the date requested from Semana ("ver dia adaptado")
   useEffect(() => {
@@ -48,16 +50,18 @@ export default function HojeScreen() {
     useCallback(() => {
       setDay(loadAdaptedDay(date));
       setBaseBlocks(getBlocksForDay(label, getModelIdForDate(date)));
-      loadDoneForDate(iso);
+      setImportantIds(getImportantBlockIds());
+      loadStatusForDate(iso);
     }, [date, iso, label]),
   );
 
   const doneIds = dates[iso] ?? new Set<number>();
+  const skipIds = skipped[iso] ?? new Set<number>();
   const isToday = iso === toIsoDate(new Date());
-  // reorder (which repacks times) only makes sense within a window; in free placement
-  // (no Sono block) blocks keep their own clock times, so drag-reorder is hidden.
-  const windowed = baseBlocks.some((b) => b.categoryName === 'Sono');
-  const isClean = day != null && day.verdict === 'OK' && windowed;
+  // reorder (which repacks times) only makes sense in rotina mode (engine active);
+  // in agenda mode blocks keep their own clock times, so drag-reorder is hidden.
+  const mode = useModeStore((s) => s.mode);
+  const isClean = day != null && day.verdict === 'OK' && mode === 'rotina';
 
   function onReorderToday(ids: number[]) {
     const modelId = getModelIdForDate(date);
@@ -155,14 +159,17 @@ export default function HojeScreen() {
             renderItem={({ item }) => {
               const color = (item.category ? colorByName.get(item.category) : null) ?? '#6B7280';
               const done = item.source === 'routine' && doneIds.has(item.refId);
+              const notDone = item.source === 'routine' && skipIds.has(item.refId);
               return (
                 <TimelineRow
                   item={item}
                   color={color}
                   done={done}
+                  notDone={notDone}
+                  important={item.source === 'routine' && importantIds.has(item.refId)}
                   onToggle={
                     item.source === 'routine' && !item.removed
-                      ? () => toggleBlock(iso, item.refId)
+                      ? () => cycleBlock(iso, item.refId)
                       : undefined
                   }
                   onPress={() => openEditor(item.source, item.refId)}

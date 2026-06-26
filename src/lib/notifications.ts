@@ -63,6 +63,7 @@ export function buildNotificationPlan(
   adaptedDay: AdaptedDay,
   monthly: MonthlyNotif[],
   prefs: NotifPrefs,
+  importantBlockIds: Set<number> = new Set(),
 ): ScheduledNotification[] {
   if (!prefs.enabled) return [];
   const out: ScheduledNotification[] = [];
@@ -81,9 +82,10 @@ export function buildNotificationPlan(
     for (const item of adaptedDay.timeline) {
       if (item.removed || item.category === 'Sono') continue;
       if (item.source === 'event') continue; // events use their own per-event reminder
-      const include =
-        prefs.scope === 'todos' ||
+      const important =
+        importantBlockIds.has(item.refId) ||
         (item.category != null && IMPORTANT_CATEGORIES.has(item.category));
+      const include = prefs.scope === 'todos' || important;
       if (!include) continue;
       const startMin = timeToMinutes(item.start);
       if (startMin == null) continue;

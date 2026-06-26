@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { CategoryPicker } from '@/components/CategoryPicker';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DayPicker, MultiDayPicker } from '@/components/DayPicker';
@@ -33,6 +33,7 @@ export default function BlocoForm() {
   const [activity, setActivity] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [note, setNote] = useState('');
+  const [important, setImportant] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -46,6 +47,7 @@ export default function BlocoForm() {
       setActivity(b.activity);
       setCategoryId(b.categoryId);
       setNote(b.note ?? '');
+      setImportant(b.important === 1);
     }
   }, [blockId]);
 
@@ -67,7 +69,7 @@ export default function BlocoForm() {
 
   function handleSave() {
     if (editing && blockId != null) {
-      const input = { dayLabel, start, end, activity, categoryId, note };
+      const input = { dayLabel, start, end, activity, categoryId, note, important: important ? 1 : 0 };
       const result = validateBlock(input);
       if (!result.ok) {
         setErrors(result.errors);
@@ -82,7 +84,7 @@ export default function BlocoForm() {
       setErrors((e) => ({ ...e, days: 'Selecione ao menos um dia' }));
       return;
     }
-    const base = { start, end, activity, categoryId, note };
+    const base = { start, end, activity, categoryId, note, important: important ? 1 : 0 };
     const result = validateBlock(base);
     if (!result.ok) {
       setErrors(result.errors);
@@ -155,6 +157,16 @@ export default function BlocoForm() {
           style={{ minHeight: 60, textAlignVertical: 'top' }}
         />
       </FormField>
+
+      <View className="flex-row items-center justify-between py-2 mb-2">
+        <View className="flex-1 pr-3">
+          <Text className="text-sm font-medium text-gray-800 dark:text-gray-100">Importante</Text>
+          <Text className="text-xs text-gray-400 dark:text-gray-500">
+            Recebe lembrete quando os avisos estão no modo "Importantes"
+          </Text>
+        </View>
+        <Switch value={important} onValueChange={setImportant} />
+      </View>
 
       <TouchableOpacity onPress={handleSave} className="bg-blue-600 rounded-lg py-3 items-center mt-2">
         <Text className="text-white font-semibold">Salvar</Text>

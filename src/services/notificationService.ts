@@ -4,6 +4,7 @@ import { toIsoDate } from '@/lib/dayResolver';
 import { buildEventReminders, buildNotificationPlan } from '@/lib/notifications';
 import { getMonthlyStatus } from '@/lib/recurrence';
 import { loadAdaptedDay } from '@/repositories/adaptedDayRepo';
+import { getImportantBlockIds } from '@/repositories/blocksRepo';
 import { getEventsByDate } from '@/repositories/eventsRepo';
 import { getAllMonthly } from '@/repositories/monthlyRoutinesRepo';
 import { getNotifPrefs } from '@/repositories/settingsRepo';
@@ -57,6 +58,7 @@ export async function rescheduleNotifications(): Promise<void> {
 
   const now = new Date();
   const monthly = getAllMonthly();
+  const importantIds = getImportantBlockIds();
   for (let offset = 0; offset <= 2; offset++) {
     const date = new Date(now);
     date.setDate(now.getDate() + offset);
@@ -67,7 +69,7 @@ export async function rescheduleNotifications(): Promise<void> {
       windowStartDay: m.windowStartDay,
       windowEndDay: m.windowEndDay,
     }));
-    const plan = buildNotificationPlan(date, adapted, monthlyNotif, prefs);
+    const plan = buildNotificationPlan(date, adapted, monthlyNotif, prefs, importantIds);
     const eventReminders = buildEventReminders(
       getEventsByDate(toIsoDate(date)).map((e) => ({
         title: e.title,
