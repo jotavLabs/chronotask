@@ -36,7 +36,7 @@ Ele tem **dois modos**, porque rotina e agenda são coisas diferentes:
 - **🗓️ Agenda** (padrão) — cada bloco e compromisso fica no horário que você definiu. Direto, como uma agenda de papel.
 - **🔁 Rotina** — o dia é um template adaptável: quando entra um compromisso, um **motor de adaptação** reorganiza os blocos ao redor dele (encurtando o tempo livre, nunca o sono), e você pode reordenar arrastando.
 
-Como projeto, ele também é meu **portfólio**: local-first de verdade, motor de adaptação determinístico e testado, migrações de banco escritas à mão e 134 testes — com as decisões registradas no histórico de commits.
+Como projeto, ele também é meu **portfólio**: local-first de verdade, motor de adaptação determinístico e testado, migrações de banco versionadas e 134 testes — com as decisões registradas no histórico de commits.
 
 > **Por que Android e por que APK?** É um app pessoal e de amigos, então não passei pelo custo/burocracia da Play Store — a distribuição é por **APK direto**. Web não é suportado (o `expo-sqlite` exige headers `SharedArrayBuffer`/COEP-COOP que o navegador padrão não fornece).
 
@@ -95,7 +95,7 @@ As escolhas que tornam este projeto interessante de ler:
 
 - **Motor de adaptação determinístico.** No modo rotina, encaixar um compromisso de _C_ minutos libera exatamente _C_ minutos de outras atividades: uma **cascata de sacrifício** corta as categorias de menor prioridade em **minutos inteiros cuja soma é exata** (largest-remainder, sem criar buracos), pulando blocos protegidos e o sono; em seguida um **reflow por barreiras** reposiciona tudo dentro da janela do dia, com o tempo livre funcionando como folga elástica e o sono imóvel. Coberto por testes de cenário.
 
-- **Migrações escritas à mão.** Um bundle versionado (`m0000` → `m0009`) aplicado no boot via `useMigrations`. Cada mudança de schema é uma migração incremental — bancos já instalados evoluem sem perder dados.
+- **Migrações versionadas e incrementais.** Um bundle (`m0000` → `m0009`) aplicado no boot via `useMigrations`. Cada mudança de schema é uma nova migração — bancos já instalados evoluem sem perder dados.
 
 - **Recorrência sob demanda.** Eventos recorrentes são expandidos na própria consulta (`getEventsByDate`), então as telas de Dia/Semana/Mês **e** as notificações herdam a recorrência de graça, sem materializar ocorrências no banco.
 
@@ -105,7 +105,7 @@ As escolhas que tornam este projeto interessante de ler:
 src/
 ├── app/            # telas (Expo Router): (tabs), gerenciar, ajustes, semana, mês…
 ├── components/     # UI reutilizável
-├── db/             # schema Drizzle, client, migrations (à mão), seed
+├── db/             # schema Drizzle, client, migrations (versionadas), seed
 ├── lib/            # lógica PURA e testável (motor, recorrência, validação…)
 ├── repositories/   # ÚNICO lugar com SQL
 ├── services/       # efeitos async (notificações, backup)
