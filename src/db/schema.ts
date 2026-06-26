@@ -42,6 +42,7 @@ export const routineBlocks = sqliteTable('routine_blocks', {
   note: text('note'),
   sortOrder: integer('sort_order').notNull().default(0),
   topic: text('topic'), // normalized study topic (S5), nullable
+  important: integer('important').notNull().default(0), // 1 = importante (lembretes "importantes")
   ...syncCols,
 });
 

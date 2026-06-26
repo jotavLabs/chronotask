@@ -11,7 +11,7 @@ import type { AdaptedDay } from '@/lib/adaptationEngine';
 import { resolveDayLabel, toIsoDate } from '@/lib/dayResolver';
 import { formatDuration } from '@/lib/validation';
 import { loadAdaptedDay } from '@/repositories/adaptedDayRepo';
-import { applyReorder, getBlocksForDay } from '@/repositories/blocksRepo';
+import { applyReorder, getBlocksForDay, getImportantBlockIds } from '@/repositories/blocksRepo';
 import type { BlockWithCategory } from '@/repositories/blocksRepo';
 import { getAllCategories } from '@/repositories/categoriesRepo';
 import { getModelIdForDate } from '@/repositories/schedulingRepo';
@@ -29,6 +29,7 @@ export default function HojeScreen() {
   const [day, setDay] = useState<AdaptedDay | null>(null);
   const [baseBlocks, setBaseBlocks] = useState<BlockWithCategory[]>([]);
   const [reordering, setReordering] = useState(false);
+  const [importantIds, setImportantIds] = useState<Set<number>>(new Set());
   const { dates, loadDoneForDate, toggleBlock } = useRoutineStore();
 
   // jump to the date requested from Semana ("ver dia adaptado")
@@ -49,6 +50,7 @@ export default function HojeScreen() {
     useCallback(() => {
       setDay(loadAdaptedDay(date));
       setBaseBlocks(getBlocksForDay(label, getModelIdForDate(date)));
+      setImportantIds(getImportantBlockIds());
       loadDoneForDate(iso);
     }, [date, iso, label]),
   );
@@ -161,6 +163,7 @@ export default function HojeScreen() {
                   item={item}
                   color={color}
                   done={done}
+                  important={item.source === 'routine' && importantIds.has(item.refId)}
                   onToggle={
                     item.source === 'routine' && !item.removed
                       ? () => toggleBlock(iso, item.refId)

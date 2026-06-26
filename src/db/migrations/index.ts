@@ -14,9 +14,11 @@ const migrations = {
       { idx: 6, when: 6, tag: '0006_rotation', breakpoints: true },
       { idx: 7, when: 7, tag: '0007_fixed_time', breakpoints: true },
       { idx: 8, when: 8, tag: '0008_event_recurrence', breakpoints: true },
+      { idx: 9, when: 9, tag: '0009_block_important', breakpoints: true },
     ],
   },
   migrations: {
+    m0009: 'ALTER TABLE `routine_blocks` ADD COLUMN `important` integer DEFAULT 0 NOT NULL;',
     m0008: [
       "ALTER TABLE `events` ADD COLUMN `recurrence` text DEFAULT 'none' NOT NULL;",
       'ALTER TABLE `events` ADD COLUMN `reminder_min` integer DEFAULT -1 NOT NULL;',

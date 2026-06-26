@@ -7,6 +7,7 @@ interface Props {
   item: TimelineItem;
   color: string;
   done: boolean;
+  important?: boolean;
   onToggle?: () => void;
   onPress?: () => void;
 }
@@ -21,7 +22,7 @@ function Badge({ text, bg, fg }: { text: string; bg: string; fg: string }) {
   );
 }
 
-export function TimelineRow({ item, color, done, onToggle, onPress }: Props) {
+export function TimelineRow({ item, color, done, important, onToggle, onPress }: Props) {
   const dim = item.removed || done;
   const showCheck = onToggle && !item.removed && item.source === 'routine';
 
@@ -56,6 +57,7 @@ export function TimelineRow({ item, color, done, onToggle, onPress }: Props) {
         {item.source === 'event' && <Badge text="compromisso" bg="#EDE9FE" fg="#5B21B6" />}
         {item.source === 'monthly' && <Badge text="mensal" bg="#E0E7FF" fg="#3730A3" />}
         {item.conflict && <Badge text="⚠ conflito" bg="#FEE2E2" fg="#991B1B" />}
+        {important && <Badge text="importante" bg="#FEF3C7" fg="#92400E" />}
         {item.category ? (
           <Text className="text-[11px] text-gray-400">{item.category}</Text>
         ) : null}

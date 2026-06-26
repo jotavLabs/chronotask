@@ -75,6 +75,7 @@ export type BlockFormInput = {
   activity: string;
   categoryId: number | null;
   note?: string;
+  important?: number;
 };
 
 export function validateBlock(input: BlockFormInput): ValidationResult {
