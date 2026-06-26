@@ -7,6 +7,7 @@ interface Props {
   item: TimelineItem;
   color: string;
   done: boolean;
+  notDone?: boolean;
   important?: boolean;
   onToggle?: () => void;
   onPress?: () => void;
@@ -22,8 +23,8 @@ function Badge({ text, bg, fg }: { text: string; bg: string; fg: string }) {
   );
 }
 
-export function TimelineRow({ item, color, done, important, onToggle, onPress }: Props) {
-  const dim = item.removed || done;
+export function TimelineRow({ item, color, done, notDone, important, onToggle, onPress }: Props) {
+  const dim = item.removed || done || notDone;
   const showCheck = onToggle && !item.removed && item.source === 'routine';
 
   const body = (
@@ -91,7 +92,14 @@ export function TimelineRow({ item, color, done, important, onToggle, onPress }:
         <View className="flex-1 mr-2">{body}</View>
       )}
 
-      {showCheck && <CheckBox checked={done} onToggle={onToggle!} color={color} />}
+      {showCheck && (
+        <CheckBox
+          checked={done}
+          state={done ? 'done' : notDone ? 'skip' : 'none'}
+          onToggle={onToggle!}
+          color={color}
+        />
+      )}
     </View>
   );
 }

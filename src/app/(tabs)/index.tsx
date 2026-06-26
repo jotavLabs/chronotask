@@ -30,7 +30,7 @@ export default function HojeScreen() {
   const [baseBlocks, setBaseBlocks] = useState<BlockWithCategory[]>([]);
   const [reordering, setReordering] = useState(false);
   const [importantIds, setImportantIds] = useState<Set<number>>(new Set());
-  const { dates, loadDoneForDate, toggleBlock } = useRoutineStore();
+  const { dates, skipped, loadStatusForDate, cycleBlock } = useRoutineStore();
 
   // jump to the date requested from Semana ("ver dia adaptado")
   useEffect(() => {
@@ -51,11 +51,12 @@ export default function HojeScreen() {
       setDay(loadAdaptedDay(date));
       setBaseBlocks(getBlocksForDay(label, getModelIdForDate(date)));
       setImportantIds(getImportantBlockIds());
-      loadDoneForDate(iso);
+      loadStatusForDate(iso);
     }, [date, iso, label]),
   );
 
   const doneIds = dates[iso] ?? new Set<number>();
+  const skipIds = skipped[iso] ?? new Set<number>();
   const isToday = iso === toIsoDate(new Date());
   // reorder (which repacks times) only makes sense in rotina mode (engine active);
   // in agenda mode blocks keep their own clock times, so drag-reorder is hidden.
@@ -158,15 +159,17 @@ export default function HojeScreen() {
             renderItem={({ item }) => {
               const color = (item.category ? colorByName.get(item.category) : null) ?? '#6B7280';
               const done = item.source === 'routine' && doneIds.has(item.refId);
+              const notDone = item.source === 'routine' && skipIds.has(item.refId);
               return (
                 <TimelineRow
                   item={item}
                   color={color}
                   done={done}
+                  notDone={notDone}
                   important={item.source === 'routine' && importantIds.has(item.refId)}
                   onToggle={
                     item.source === 'routine' && !item.removed
-                      ? () => toggleBlock(iso, item.refId)
+                      ? () => cycleBlock(iso, item.refId)
                       : undefined
                   }
                   onPress={() => openEditor(item.source, item.refId)}

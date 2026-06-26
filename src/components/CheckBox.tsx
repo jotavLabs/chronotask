@@ -1,20 +1,30 @@
-import { Pressable, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+
+export type CheckState = 'done' | 'skip' | 'none';
 
 interface Props {
   checked: boolean;
   onToggle: () => void;
   color?: string;
+  /** 3-state override. When omitted, derives from `checked` (done/none). */
+  state?: CheckState;
 }
 
-export function CheckBox({ checked, onToggle, color = '#3B82F6' }: Props) {
+const SKIP_COLOR = '#EF4444';
+
+export function CheckBox({ checked, onToggle, color = '#3B82F6', state }: Props) {
+  const s: CheckState = state ?? (checked ? 'done' : 'none');
+  const borderColor = s === 'skip' ? SKIP_COLOR : color;
+  const backgroundColor = s === 'done' ? color : s === 'skip' ? SKIP_COLOR : 'transparent';
+
   return (
     <Pressable
       onPress={onToggle}
       className="w-6 h-6 rounded border-2 items-center justify-center"
-      style={{ borderColor: color, backgroundColor: checked ? color : 'transparent' }}
+      style={{ borderColor, backgroundColor }}
       hitSlop={8}
     >
-      {checked && (
+      {s === 'done' && (
         <View className="w-3 h-3">
           {/* Checkmark via border trick */}
           <View
@@ -30,6 +40,7 @@ export function CheckBox({ checked, onToggle, color = '#3B82F6' }: Props) {
           />
         </View>
       )}
+      {s === 'skip' && <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800', lineHeight: 15 }}>✕</Text>}
     </Pressable>
   );
 }
