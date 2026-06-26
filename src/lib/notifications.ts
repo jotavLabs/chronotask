@@ -80,9 +80,9 @@ export function buildNotificationPlan(
   if (prefs.scope !== 'nenhum') {
     for (const item of adaptedDay.timeline) {
       if (item.removed || item.category === 'Sono') continue;
+      if (item.source === 'event') continue; // events use their own per-event reminder
       const include =
         prefs.scope === 'todos' ||
-        item.source === 'event' ||
         (item.category != null && IMPORTANT_CATEGORIES.has(item.category));
       if (!include) continue;
       const startMin = timeToMinutes(item.start);
@@ -119,4 +119,30 @@ export function buildNotificationPlan(
   }
 
   return out.sort((a, b) => a.when.getTime() - b.when.getTime());
+}
+
+export type EventReminder = { title: string; start: string; end: string; reminderMin: number };
+
+/**
+ * Per-event reminders. Each event carries its own lead time (reminderMin: -1 = off,
+ * 0 = at start, N = N minutes before). Unlike routine blocks, event reminders are
+ * NOT suppressed during sleep — a 05:00 flight should still warn at 04:00.
+ */
+export function buildEventReminders(events: EventReminder[], date: Date): ScheduledNotification[] {
+  const out: ScheduledNotification[] = [];
+  for (const ev of events) {
+    if (ev.reminderMin < 0) continue;
+    const startMin = timeToMinutes(ev.start);
+    if (startMin == null) continue;
+    out.push({
+      when: atTime(date, startMin - ev.reminderMin),
+      title: ev.title,
+      body:
+        ev.reminderMin > 0
+          ? `Começa às ${ev.start} (em ${ev.reminderMin} min)`
+          : `Agora: ${ev.start}–${ev.end}`,
+      type: 'block',
+    });
+  }
+  return out;
 }

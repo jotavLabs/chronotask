@@ -105,12 +105,3 @@ export function getEditingModelIdRaw(): number | null {
 export function setEditingModelId(id: number): void {
   setSetting('editing_model_id', String(id));
 }
-
-export function getLastUsedModelIdRaw(): number | null {
-  const v = getSetting('last_used_model_id');
-  return v ? Number(v) : null;
-}
-
-export function setLastUsedModelId(id: number): void {
-  setSetting('last_used_model_id', String(id));
-}

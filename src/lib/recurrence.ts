@@ -73,3 +73,51 @@ export function getRoutinesForDate(date: Date, routines: MonthlyRoutine[]): Mont
     (r) => dayOfMonth >= r.windowStartDay && dayOfMonth <= r.windowEndDay,
   );
 }
+
+// ─── event recurrence (agenda) ──────────────────────────────────────────────────
+
+export type EventRecurrence = 'none' | 'weekly' | 'monthly' | 'yearly';
+
+export const RECURRENCE_LABEL: Record<EventRecurrence, string> = {
+  none: 'Não repete',
+  weekly: 'Toda semana',
+  monthly: 'Todo mês',
+  yearly: 'Todo ano',
+};
+
+/**
+ * Whether an event anchored at `baseIso` (its first date) occurs on `targetIso`.
+ * Recurrence never fires before the base. Monthly/yearly just require the same
+ * day-of-month (and month, for yearly) — a base on day 31 simply skips short months.
+ */
+export function eventOccursOn(baseIso: string, recurrence: string, targetIso: string): boolean {
+  if (recurrence === 'none' || !recurrence) return baseIso === targetIso;
+  const base = parseIsoDate(baseIso);
+  const target = parseIsoDate(targetIso);
+  if (!base || !target || target < base) return false;
+  switch (recurrence) {
+    case 'weekly':
+      return base.getDay() === target.getDay();
+    case 'monthly':
+      return base.getDate() === target.getDate();
+    case 'yearly':
+      return base.getDate() === target.getDate() && base.getMonth() === target.getMonth();
+    default:
+      return baseIso === targetIso;
+  }
+}
+
+/** Next ISO date on/after `fromIso` when the event occurs, or null (~400-day horizon). */
+export function nextOccurrenceIso(baseIso: string, recurrence: string, fromIso: string): string | null {
+  if (recurrence === 'none' || !recurrence) return baseIso >= fromIso ? baseIso : null;
+  const base = parseIsoDate(baseIso);
+  const from = parseIsoDate(fromIso);
+  if (!base || !from) return null;
+  const cursor = base > from ? new Date(base) : new Date(from);
+  for (let i = 0; i < 400; i++) {
+    const iso = toIsoDate(cursor);
+    if (eventOccursOn(baseIso, recurrence, iso)) return iso;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return null;
+}

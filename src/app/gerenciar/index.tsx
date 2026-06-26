@@ -12,12 +12,6 @@ const ENTRIES: Entry[] = [
     subtitle: 'Vários modelos nomeados; escolha qual editar',
   },
   {
-    href: '/gerenciar/rotacao' as Href,
-    icon: '🔄',
-    title: 'Sequência / Rotação',
-    subtitle: 'Alternar modelos por semana/mês em loop ou atribuição',
-  },
-  {
     href: '/gerenciar/blocos',
     icon: '🗓️',
     title: 'Blocos da rotina',

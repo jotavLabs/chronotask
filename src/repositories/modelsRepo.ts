@@ -1,6 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
-import { rotationItems, routineBlocks, routineModels, weekAssignments } from '@/db/schema';
+import { routineBlocks, routineModels } from '@/db/schema';
 import type { RoutineModel } from '@/db/schema';
 import {
   getEditingModelIdRaw,
@@ -34,8 +34,6 @@ export function renameModel(id: number, name: string): void {
 export function deleteModel(id: number): void {
   db.transaction((tx) => {
     tx.update(routineBlocks).set({ deleted: 1 }).where(eq(routineBlocks.modelId, id)).run();
-    tx.delete(rotationItems).where(eq(rotationItems.modelId, id)).run(); // drop from the loop
-    tx.update(weekAssignments).set({ deleted: 1 }).where(eq(weekAssignments.modelId, id)).run();
     tx.update(routineModels).set({ deleted: 1 }).where(eq(routineModels.id, id)).run();
   });
   if (getEditingModelIdRaw() === id) {

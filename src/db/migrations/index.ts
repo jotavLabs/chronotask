@@ -13,9 +13,14 @@ const migrations = {
       { idx: 5, when: 5, tag: '0005_models', breakpoints: true },
       { idx: 6, when: 6, tag: '0006_rotation', breakpoints: true },
       { idx: 7, when: 7, tag: '0007_fixed_time', breakpoints: true },
+      { idx: 8, when: 8, tag: '0008_event_recurrence', breakpoints: true },
     ],
   },
   migrations: {
+    m0008: [
+      "ALTER TABLE `events` ADD COLUMN `recurrence` text DEFAULT 'none' NOT NULL;",
+      'ALTER TABLE `events` ADD COLUMN `reminder_min` integer DEFAULT -1 NOT NULL;',
+    ].join('\n--> statement-breakpoint\n'),
     m0007: 'ALTER TABLE `categories` ADD COLUMN `fixed_time` integer DEFAULT 0 NOT NULL;',
     m0006: [
       "CREATE TABLE IF NOT EXISTS `rotation` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL, `enabled` integer NOT NULL DEFAULT 0, `mode` text NOT NULL DEFAULT 'loop', `period` text NOT NULL DEFAULT 'weekly', `anchor_date` text, `updated_at` text, `deleted` integer DEFAULT 0 NOT NULL);",

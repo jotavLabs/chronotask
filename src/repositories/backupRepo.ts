@@ -7,13 +7,10 @@ import {
   exercises,
   holidays,
   monthlyRoutines,
-  rotation,
-  rotationItems,
   routineBlocks,
   routineModels,
   settings,
   trainingDays,
-  weekAssignments,
 } from '@/db/schema';
 import type { BackupData } from '@/lib/backup';
 
@@ -31,9 +28,6 @@ export function getAllData(): BackupData {
     training_days: db.select().from(trainingDays).all(),
     exercises: db.select().from(exercises).all(),
     exercise_logs: db.select().from(exerciseLogs).all(),
-    rotation: db.select().from(rotation).all(),
-    rotation_items: db.select().from(rotationItems).all(),
-    week_assignments: db.select().from(weekAssignments).all(),
   };
 }
 
@@ -54,9 +48,6 @@ export function restoreData(data: BackupData): void {
     tx.delete(completions).run();
     tx.delete(events).run();
     tx.delete(monthlyRoutines).run();
-    tx.delete(weekAssignments).run();
-    tx.delete(rotationItems).run();
-    tx.delete(rotation).run();
     tx.delete(routineBlocks).run();
     tx.delete(routineModels).run();
     tx.delete(holidays).run();
@@ -75,9 +66,6 @@ export function restoreData(data: BackupData): void {
     insertAll(tx, completions, data.completions);
     insertAll(tx, exercises, data.exercises);
     insertAll(tx, exerciseLogs, data.exercise_logs);
-    insertAll(tx, rotation, data.rotation);
-    insertAll(tx, rotationItems, data.rotation_items);
-    insertAll(tx, weekAssignments, data.week_assignments);
     insertAll(tx, settings, data.settings);
   });
 }

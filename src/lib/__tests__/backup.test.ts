@@ -13,9 +13,6 @@ const DATA: BackupData = {
   training_days: [{ id: 1, label: 'Upper A', weekday: 'Seg' }],
   exercises: [{ id: 1, trainingDayId: 1, name: 'Pull-up', sets: '5', reps: '3-5', sortOrder: 1 }],
   exercise_logs: [{ id: 1, exerciseId: 1, date: '2026-06-08', setNumber: 1, reps: 5, loggedAt: '2026-06-08T14:00:00Z' }],
-  rotation: [{ id: 1, enabled: 0, mode: 'loop', period: 'weekly', anchorDate: '2026-06-01' }],
-  rotation_items: [{ id: 1, position: 0, modelId: 1 }],
-  week_assignments: [{ id: 1, periodStart: '2026-06-08', modelId: 1 }],
 };
 
 describe('backup', () => {
