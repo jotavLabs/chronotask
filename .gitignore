@@ -38,6 +38,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# local database (criado no device em runtime)
+*.db
+*.sqlite
+
 example
 
 # generated native folders
