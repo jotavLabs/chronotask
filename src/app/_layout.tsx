@@ -76,6 +76,7 @@ function MobileApp() {
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="semana" options={{ headerShown: false }} />
       <Stack.Screen name="gerenciar" options={{ headerShown: false }} />
       <Stack.Screen name="ajustes" options={{ headerShown: false }} />
       <Stack.Screen name="estatisticas" options={{ headerShown: false }} />

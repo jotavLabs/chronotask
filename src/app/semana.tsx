@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DayList } from '@/components/DayList';
@@ -14,12 +14,20 @@ import { buildHolidayDateSet } from '@/repositories/categoriesRepo';
 import { getModelIdForDate } from '@/repositories/schedulingRepo';
 import { useRoutineStore } from '@/store/routineStore';
 
+function isoToDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export default function SemanaScreen() {
+  const params = useLocalSearchParams<{ date?: string }>();
   const today = useMemo(() => new Date(), []);
-  const weekDates = useMemo(() => getWeekDates(today), [today]);
+  const anchor = useMemo(() => (params.date ? isoToDate(params.date) : new Date()), [params.date]);
+  const weekDates = useMemo(() => getWeekDates(anchor), [anchor]);
   const holidayDates = useMemo(() => buildHolidayDateSet(), []);
 
-  const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const [selectedDate, setSelectedDate] = useState<Date>(anchor);
+  useEffect(() => setSelectedDate(anchor), [anchor]);
   const selectedIso = toIsoDate(selectedDate);
   const selectedLabel = resolveDayLabel(selectedDate);
   const selectedIsHoliday = holidayDates.has(selectedIso);
@@ -52,7 +60,20 @@ export default function SemanaScreen() {
   const todayIso = toIsoDate(today);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-gray-900" edges={['bottom']}>
+    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-gray-900" edges={['top', 'bottom']}>
+      {/* Header: voltar para o Mês */}
+      <View className="flex-row items-center px-2 py-2 bg-white dark:bg-gray-800">
+        <TouchableOpacity
+          onPress={() => (router.canGoBack() ? router.back() : router.navigate('/mes'))}
+          hitSlop={10}
+          className="flex-row items-center px-2 py-1"
+        >
+          <Text className="text-2xl text-blue-600">‹</Text>
+          <Text className="text-sm text-blue-600 ml-0.5">Mês</Text>
+        </TouchableOpacity>
+        <Text className="text-base font-semibold text-gray-900 dark:text-white ml-2">Semana</Text>
+      </View>
+
       {/* Week strip */}
       <View className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 pt-2">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 8 }}>

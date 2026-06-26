@@ -81,7 +81,7 @@ export default function MesScreen() {
               key={iso}
               style={{ width: `${100 / 7}%` }}
               className="h-14 items-center justify-center"
-              onPress={() => router.navigate({ pathname: '/', params: { date: iso } })}
+              onPress={() => router.push({ pathname: '/semana', params: { date: iso } })}
             >
               <View className={`w-9 h-9 items-center justify-center rounded-full ${isToday ? 'bg-blue-600' : ''}`}>
                 <Text

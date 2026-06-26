@@ -37,7 +37,6 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Hoje', tabBarIcon: (p) => <TabIcon label="☀️" color={p.color} /> }} />
-      <Tabs.Screen name="semana" options={{ title: 'Semana', tabBarIcon: (p) => <TabIcon label="📅" color={p.color} /> }} />
       <Tabs.Screen name="mes" options={{ title: 'Mês', tabBarIcon: (p) => <TabIcon label="🗓️" color={p.color} /> }} />
       <Tabs.Screen
         name="treino"
