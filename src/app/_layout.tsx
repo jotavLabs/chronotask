@@ -3,12 +3,11 @@ import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { Stack } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
-import { StartChoice } from '@/components/StartChoice';
 import { db } from '@/db/client';
 import { backfillTopics } from '@/db/backfillTopics';
 import migrations from '@/db/migrations';
 import { runSeed } from '@/db/seed';
-import { getStartChoiceDone } from '@/repositories/settingsRepo';
+import { autoBackupIfDue } from '@/services/backupService';
 import { configureNotifications, rescheduleNotifications } from '@/services/notificationService';
 import { useTabsStore } from '@/store/tabsStore';
 import { useThemeStore } from '@/store/themeStore';
@@ -35,7 +34,7 @@ function WebUnsupported() {
 function MobileApp() {
   const { success, error } = useMigrations(db, migrations);
   const seeded = useRef(false);
-  const [phase, setPhase] = useState<'loading' | 'choice' | 'ready'>('loading');
+  const [phase, setPhase] = useState<'loading' | 'ready'>('loading');
 
   useEffect(() => {
     if (success && !seeded.current) {
@@ -47,7 +46,8 @@ function MobileApp() {
         useTabsStore.getState().init();
         configureNotifications();
         void rescheduleNotifications();
-        setPhase(getStartChoiceDone() ? 'ready' : 'choice');
+        void autoBackupIfDue();
+        setPhase('ready');
       } catch (e) {
         console.error('[seed]', e);
         setPhase('ready');
@@ -71,10 +71,6 @@ function MobileApp() {
         <Text style={{ color: '#9CA3AF', fontSize: 14 }}>Iniciando…</Text>
       </View>
     );
-  }
-
-  if (phase === 'choice') {
-    return <StartChoice onDone={() => setPhase('ready')} />;
   }
 
   return (

@@ -8,7 +8,7 @@ import { findModelRedundantIds, removeBlocks } from '@/repositories/blocksRepo';
 import { getEditingModelId, getModelById } from '@/repositories/modelsRepo';
 import { getLastBackupAt, getNotifPrefs, setNotifPrefs } from '@/repositories/settingsRepo';
 import { clearExampleData } from '@/repositories/templatesRepo';
-import { applyBackup, exportBackup, pickBackup } from '@/services/backupService';
+import { applyBackup, disableAutoBackup, enableAutoBackup, exportBackup, getLastAutoBackupAt, isAutoBackupOn, pickBackup } from '@/services/backupService';
 import { requestNotifPermission, rescheduleNotifications } from '@/services/notificationService';
 import { useTabsStore } from '@/store/tabsStore';
 import { useThemeStore } from '@/store/themeStore';
@@ -99,6 +99,8 @@ export default function AjustesScreen() {
   const setShowStudies = useTabsStore((s) => s.setShowStudies);
   const [notif, setNotif] = useState<NotifPrefs>(() => getNotifPrefs());
   const [lastBackup, setLastBackup] = useState<string | null>(() => getLastBackupAt());
+  const [autoOn, setAutoOn] = useState(() => isAutoBackupOn());
+  const [lastAuto, setLastAuto] = useState<string | null>(() => getLastAutoBackupAt());
 
   function update(patch: Partial<NotifPrefs>) {
     const next = { ...notif, ...patch };
@@ -139,6 +141,21 @@ export default function AjustesScreen() {
         },
       },
     ]);
+  }
+
+  async function onToggleAuto(v: boolean) {
+    if (!v) {
+      disableAutoBackup();
+      setAutoOn(false);
+      return;
+    }
+    const r = await enableAutoBackup();
+    if (r.ok) {
+      setAutoOn(true);
+      setLastAuto(getLastAutoBackupAt());
+    } else if (r.error !== 'cancelado') {
+      Alert.alert('Erro', r.error ?? 'Não foi possível ativar.');
+    }
   }
 
   function onRemoveOverflow() {
@@ -280,13 +297,15 @@ export default function AjustesScreen() {
           <Text className="text-base mr-3">⬆️</Text>
           <Text className="flex-1 text-sm text-gray-800 dark:text-gray-100">Exportar dados</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={onImport} className="flex-row items-center px-4 py-3">
+        <TouchableOpacity onPress={onImport} className="flex-row items-center px-4 py-3 border-b border-gray-100 dark:border-gray-700/50">
           <Text className="text-base mr-3">⬇️</Text>
           <Text className="flex-1 text-sm text-gray-800 dark:text-gray-100">Importar dados</Text>
         </TouchableOpacity>
+        <SwitchRow label="Backup automático em pasta" value={autoOn} onValueChange={onToggleAuto} />
       </Card>
       <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 px-1">
-        {lastBackup ? `Último backup: ${fmtBackup(lastBackup)}` : 'Nenhum backup ainda.'}
+        {(lastBackup ? `Último backup manual: ${fmtBackup(lastBackup)}` : 'Nenhum backup manual ainda.') +
+          (autoOn ? `\nBackup automático ativo${lastAuto ? ` · ${fmtBackup(lastAuto)}` : ''}` : '')}
       </Text>
     </ScrollView>
   );
