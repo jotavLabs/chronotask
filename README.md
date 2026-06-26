@@ -137,6 +137,10 @@ eas build -p android --profile preview
 npm test
 ```
 
+## 🤝 Desenvolvimento
+
+Projeto pessoal desenvolvido por **João Victor**, em **colaboração com o [Claude Code](https://claude.com/claude-code)** (assistente de IA da Anthropic) usado como par de programação — da arquitetura aos testes.
+
 ## 📄 Licença
 
 [MIT](LICENSE) © João Victor
