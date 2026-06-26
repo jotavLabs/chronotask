@@ -2,14 +2,14 @@
   "expo": {
     "name": "ChronoTask",
     "slug": "chronotask",
-    "version": "1.0.0-beta.2",
+    "version": "1.0.0-beta.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "routineapp",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.jotavlabs.chronotask",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM"

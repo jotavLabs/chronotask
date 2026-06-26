@@ -6,17 +6,19 @@
 
 App de **rotina e agenda local-first** para Android — 100% offline, sem conta e sem nuvem.
 
+[![CI](https://github.com/jotavLabs/chronotask/actions/workflows/ci.yml/badge.svg)](https://github.com/jotavLabs/chronotask/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Tests](https://img.shields.io/badge/tests-134%20passing-success)
 ![Expo](https://img.shields.io/badge/Expo-SDK%2056-000020?logo=expo)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)
 
-<!-- DEMO: grave a tela do app (15-30s), gere um GIF e arraste-o aqui no editor web do GitHub.
-     Cole a URL gerada no lugar de docs/demo.gif. Um GIF no topo é o que mais "vende". -->
+<!-- DEMO: grave a tela (15-30s), gere um GIF, arraste-o no editor web do GitHub, troque a URL
+     abaixo e descomente as duas linhas internas. Um GIF no topo é o que mais "vende".
 <img src="docs/demo.gif" alt="Demonstração do ChronoTask" width="280" />
+-->
 
-[**⬇️ Baixar APK**](https://github.com/jotavLabs/routine-app/releases/latest) ·
+[**⬇️ Baixar APK**](https://github.com/jotavLabs/chronotask/releases) ·
 [Funcionalidades](#-funcionalidades) ·
 [Arquitetura](#️-arquitetura--decisões) ·
 [Como rodar](#️-como-rodar)
@@ -42,7 +44,7 @@ Como projeto, ele também é meu **portfólio**: local-first de verdade, motor d
 
 Como não está na Play Store, o app é distribuído como **APK**:
 
-➡️ **[Baixar a última versão](https://github.com/jotavLabs/routine-app/releases/latest)**
+➡️ **[Baixar a última versão](https://github.com/jotavLabs/chronotask/releases)**
 
 No Android, ative **"instalar apps de fontes desconhecidas"** para o navegador ou gerenciador de arquivos antes de abrir o `.apk`. É um app local — seus dados ficam só no aparelho.
 
