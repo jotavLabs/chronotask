@@ -42,6 +42,10 @@ yarn-error.*
 *.db
 *.sqlite
 
+# build artifacts (APK fica nas GitHub Releases, nao no repo)
+*.apk
+*.aab
+
 example
 
 # generated native folders
