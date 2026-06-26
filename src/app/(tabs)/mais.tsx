@@ -7,7 +7,6 @@ type Entry = { href: Href; icon: string; title: string; subtitle: string };
 
 const ENTRIES: Entry[] = [
   { href: '/estatisticas', icon: '📊', title: 'Estatísticas', subtitle: 'Horas por tema, treino, consistência' },
-  { href: '/chat', icon: '💬', title: 'Chat de comandos', subtitle: 'Pergunte com /hoje, /treino, /feriados…' },
   { href: '/gerenciar', icon: '🗂️', title: 'Gerenciar rotina e dados', subtitle: 'Blocos, mensais, compromissos, categorias' },
   { href: '/ajustes', icon: '⚙️', title: 'Ajustes', subtitle: 'Tema e configurações' },
 ];

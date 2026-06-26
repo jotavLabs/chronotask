@@ -14,7 +14,6 @@ export default function AjustesLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Ajustes' }} />
-      <Stack.Screen name="conta" options={{ title: 'Conta & Sincronização' }} />
       <Stack.Screen name="inicio" options={{ title: 'Ponto de partida' }} />
     </Stack>
   );
